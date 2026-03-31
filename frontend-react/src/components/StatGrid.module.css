@@ -1,0 +1,22 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 16px;
+  margin-bottom: 36px;
+}
+.card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 20px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  animation: slideUp 0.4s ease both;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.alert { border-color: rgba(239,68,68,0.3); background: var(--danger-light); }
+.icon  { font-size: 1.6rem; margin-bottom: 10px; }
+.val   { font-size: 2rem; font-weight: 800; color: var(--primary); line-height: 1; margin-bottom: 6px; }
+.alertVal { color: var(--danger); }
+.label { font-size: 0.8rem; font-weight: 500; color: var(--text-muted); }

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrashGuard — Trash Detection Video Analytics</title>
+  <meta name="description" content="AI-powered video analysis for detecting trash-throwing incidents. Upload a video and get detailed reports with timestamps, object tracking, and scene descriptions." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════ NAVBAR ═══════════════════ -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-inner">
+      <div class="nav-logo">
+        <span class="logo-icon">🗑️</span>
+        <span class="logo-text">TrashGuard</span>
+      </div>
+      <div class="nav-links">
+        <a href="#upload-section" class="nav-link" id="nav-upload">Upload</a>
+        <a href="#results-section" class="nav-link hidden" id="nav-results">Results</a>
+        <span class="nav-badge" id="vlm-badge">VLM Active</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════ HERO ═══════════════════ -->
+  <section class="hero" id="hero">
+    <div class="hero-bg-circles">
+      <div class="circle c1"></div>
+      <div class="circle c2"></div>
+      <div class="circle c3"></div>
+    </div>
+    <div class="hero-content">
+      <div class="hero-badge">🤖 Dual-YOLO · BoT-SORT · nanoVLM</div>
+      <h1 class="hero-title">Intelligent Trash<br/>Detection Analytics</h1>
+      <p class="hero-subtitle">
+        Upload a surveillance video. Our AI detects persons, vehicles &amp; trash,
+        tracks every object with persistent IDs, flags littering events with
+        precise timestamps, and generates a full semantic report.
+      </p>
+      <a href="#upload-section" class="hero-cta">
+        <span>Analyse a Video</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat-pill">👤 Person Tracking</div>
+      <div class="stat-pill">🚗 Vehicle Detection</div>
+      <div class="stat-pill">🗑 Trash Detection</div>
+      <div class="stat-pill">📋 Incident Reports</div>
+      <div class="stat-pill">🔬 VLM Scene Description</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ UPLOAD SECTION ═══════════════════ -->
+  <section class="section" id="upload-section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Upload Video</h2>
+        <p class="section-sub">Supports MP4, AVI, MOV, MKV, WebM · Up to 2 GB</p>
+      </div>
+
+      <!-- Options -->
+      <div class="options-row">
+        <label class="toggle-label" id="vlm-toggle-label">
+          <input type="checkbox" id="vlm-toggle" checked />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-text">Enable VLM Scene Descriptions</span>
+          <span class="toggle-hint">(nanoVLM — adds ~2s per scene sample)</span>
+        </label>
+      </div>
+
+      <!-- Drop zone -->
+      <div class="upload-zone" id="drop-zone">
+        <input type="file" id="file-input" accept="video/*" hidden />
+        <div class="upload-icon-wrap">
+          <div class="upload-icon">📹</div>
+        </div>
+        <p class="upload-title">Drag &amp; drop your video here</p>
+        <p class="upload-sub">or</p>
+        <button class="btn btn-outline" id="browse-btn">Browse file</button>
+        <div class="upload-formats">MP4 · AVI · MOV · MKV · WebM</div>
+      </div>
+
+      <!-- File preview card (hidden until file selected) -->
+      <div class="file-preview hidden" id="file-preview">
+        <div class="file-icon">🎬</div>
+        <div class="file-info">
+          <span class="file-name" id="file-name">video.mp4</span>
+          <span class="file-size" id="file-size">0 MB</span>
+        </div>
+        <button class="btn btn-primary" id="analyze-btn">
+          <span id="analyze-btn-label">Start Analysis</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 3l14 9-14 9V3z"/></svg>
+        </button>
+        <button class="btn-icon" id="clear-file-btn" title="Remove file">✕</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ PROGRESS SECTION ═══════════════════ -->
+  <section class="section hidden" id="progress-section">
+    <div class="container">
+      <div class="progress-card">
+        <div class="progress-header">
+          <div class="progress-spinner"></div>
+          <div>
+            <h3 class="progress-title">Analysing Video…</h3>
+            <p class="progress-msg" id="progress-msg">Initialising…</p>
+          </div>
+          <span class="progress-pct" id="progress-pct">0%</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="progress-log" id="progress-log"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ RESULTS SECTION ═══════════════════ -->
+  <section class="section hidden" id="results-section">
+    <div class="container">
+
+      <!-- Top bar -->
+      <div class="results-topbar">
+        <div>
+          <h2 class="section-title">Analysis Report</h2>
+          <p class="section-sub" id="report-meta">Generated on —</p>
+        </div>
+        <div class="export-group">
+          <button class="btn btn-outline" id="csv-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Download CSV
+          </button>
+          <button class="btn btn-primary" id="print-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print Report
+          </button>
+          <button class="btn btn-subtle" id="new-analysis-btn">New Analysis</button>
+        </div>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card" id="sc-duration">
+          <div class="sc-icon">⏱</div>
+          <div class="sc-val" id="sc-duration-val">—</div>
+          <div class="sc-label">Duration</div>
+        </div>
+        <div class="stat-card" id="sc-persons">
+          <div class="sc-icon">👤</div>
+          <div class="sc-val" id="sc-persons-val">—</div>
+          <div class="sc-label">Persons Tracked</div>
+        </div>
+        <div class="stat-card" id="sc-vehicles">
+          <div class="sc-icon">🚗</div>
+          <div class="sc-val" id="sc-vehicles-val">—</div>
+          <div class="sc-label">Vehicles Tracked</div>
+        </div>
+        <div class="stat-card" id="sc-trash">
+          <div class="sc-icon">🗑</div>
+          <div class="sc-val" id="sc-trash-val">—</div>
+          <div class="sc-label">Trash Items</div>
+        </div>
+        <div class="stat-card stat-card--alert" id="sc-events">
+          <div class="sc-icon">⚠️</div>
+          <div class="sc-val" id="sc-events-val">—</div>
+          <div class="sc-label">Littering Events</div>
+        </div>
+        <div class="stat-card" id="sc-fps">
+          <div class="sc-icon">🎞</div>
+          <div class="sc-val" id="sc-fps-val">—</div>
+          <div class="sc-label">Video FPS</div>
+        </div>
+      </div>
+
+      <!-- Two-column layout -->
+      <div class="report-grid">
+
+        <!-- LEFT: Events Timeline + VLM Descriptions -->
+        <div class="report-col">
+
+          <!-- Littering Events -->
+          <div class="card" id="events-card">
+            <div class="card-header">
+              <h3 class="card-title">⚠️ Littering / Throwing Events</h3>
+              <span class="badge badge--red" id="events-count-badge">0</span>
+            </div>
+            <div class="events-list" id="events-list">
+              <div class="empty-state">No littering events detected.</div>
+            </div>
+          </div>
+
+          <!-- VLM Scene Descriptions -->
+          <div class="card" id="vlm-card">
+            <div class="card-header">
+              <h3 class="card-title">🔬 VLM Scene Descriptions</h3>
+              <span class="badge badge--blue" id="vlm-count-badge">0</span>
+            </div>
+            <div class="vlm-list" id="vlm-list">
+              <div class="empty-state">No VLM descriptions available.</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT: Frame Gallery + Track Summary -->
+        <div class="report-col">
+
+          <!-- Frame Gallery -->
+          <div class="card" id="gallery-card">
+            <div class="card-header">
+              <h3 class="card-title">🖼 Annotated Frame Gallery</h3>
+              <div class="gallery-controls">
+                <button class="btn-icon" id="gal-prev">‹</button>
+                <span class="gallery-counter" id="gallery-counter">0 / 0</span>
+                <button class="btn-icon" id="gal-next">›</button>
+              </div>
+            </div>
+            <div class="gallery-wrap" id="gallery-wrap">
+              <div class="empty-state">Frames will appear here.</div>
+            </div>
+            <div class="gallery-thumbnails" id="gallery-thumbnails"></div>
+          </div>
+
+          <!-- Detection Class Breakdown -->
+          <div class="card" id="classes-card">
+            <div class="card-header">
+              <h3 class="card-title">📊 Detection Breakdown</h3>
+            </div>
+            <div class="class-bars" id="class-bars">
+              <div class="empty-state">No data yet.</div>
+            </div>
+          </div>
+
+          <!-- Track Timeline -->
+          <div class="card" id="tracks-card">
+            <div class="card-header">
+              <h3 class="card-title">🏷 Object Track Summary</h3>
+            </div>
+            <div class="tracks-table-wrap">
+              <table class="tracks-table" id="tracks-table">
+                <thead>
+                  <tr>
+                    <th>ID</th><th>Class</th><th>Model</th><th>First Seen</th><th>Last Seen</th><th>Detections</th>
+                  </tr>
+                </thead>
+                <tbody id="tracks-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /report-grid -->
+
+      <!-- Printable report (hidden in normal view, shown for print) -->
+      <div id="printable-report" class="printable-report hidden"></div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════ FOOTER ═══════════════════ -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <span>🗑️ <strong>TrashGuard</strong> — Trash Detection Video Analytics</span>
+      <span>Powered by YOLO · BoT-SORT · nanoVLM</span>
+    </div>
+  </footer>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

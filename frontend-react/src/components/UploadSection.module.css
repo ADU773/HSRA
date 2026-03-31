@@ -1,0 +1,97 @@
+.section { padding: 64px 0; }
+.header { text-align: center; margin-bottom: 32px; }
+.title { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.5px; }
+.sub { color: var(--text-muted); font-size: 0.95rem; margin-top: 6px; }
+
+/* VLM toggle */
+.optionsRow { display: flex; justify-content: center; margin-bottom: 24px; }
+.toggleLabel { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+.toggleTrack {
+  width: 44px; height: 24px; border-radius: 12px;
+  background: var(--border-2); position: relative; flex-shrink: 0;
+  transition: background var(--transition);
+}
+.toggleLabel:has(input:checked) .toggleTrack { background: var(--primary); }
+.toggleThumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.15);
+  transition: transform var(--transition);
+}
+.thumbOn { transform: translateX(20px); }
+.toggleText { font-size: 0.9rem; font-weight: 500; color: var(--text-2); }
+.toggleHint { font-size: 0.78rem; color: var(--text-light); }
+
+/* Drop zone */
+.dropZone {
+  border: 2px dashed var(--border-2);
+  border-radius: var(--radius-lg);
+  padding: 64px 40px;
+  text-align: center;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+  animation: pulseBorder 3s ease-in-out infinite;
+}
+.dropZone:hover, .dragOver {
+  border-color: var(--primary) !important;
+  background: var(--primary-light);
+  box-shadow: 0 0 0 4px var(--primary-glow);
+  animation: none !important;
+}
+.iconWrap {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: var(--primary-light);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 20px;
+  transition: transform var(--transition);
+}
+.dropZone:hover .iconWrap { transform: scale(1.08); }
+.icon { font-size: 2.2rem; }
+.dzTitle { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; }
+.dzSub { color: var(--text-muted); margin-bottom: 16px; }
+.browseBtn {
+  display: inline-flex; align-items: center;
+  padding: 10px 22px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-2);
+  background: transparent; cursor: pointer;
+  font-family: var(--font); font-weight: 600; font-size: 0.9rem;
+  color: var(--text-2);
+  transition: all var(--transition);
+}
+.browseBtn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+.formats { margin-top: 16px; font-size: 0.78rem; color: var(--text-light); letter-spacing: 0.5px; }
+
+/* Preview */
+.preview {
+  display: flex; align-items: center; gap: 16px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  margin-top: 16px;
+  box-shadow: var(--shadow-sm);
+  animation: slideUp 0.3s ease;
+}
+.previewIcon { font-size: 2rem; }
+.previewInfo { flex: 1; overflow: hidden; }
+.previewName { display: block; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.previewSize { font-size: 0.82rem; color: var(--text-muted); }
+.analyzeBtn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: var(--radius-sm); border: none;
+  background: var(--primary); color: #fff;
+  font-family: var(--font); font-weight: 600; font-size: 0.9rem;
+  cursor: pointer; transition: all var(--transition);
+  box-shadow: 0 2px 8px var(--primary-glow);
+  white-space: nowrap;
+}
+.analyzeBtn:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-1px); }
+.analyzeBtn:disabled { opacity: 0.7; cursor: not-allowed; }
+.clearBtn {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1.5px solid var(--border-2); background: var(--surface);
+  color: var(--text-muted); cursor: pointer; font-size: 0.9rem;
+  transition: all var(--transition);
+}
+.clearBtn:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-light); }

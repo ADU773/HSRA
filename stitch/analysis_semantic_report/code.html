@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "inverse-primary": "#8debff",
+              "on-background": "#2c3437",
+              "surface-container": "#eaeff2",
+              "surface-container-lowest": "#ffffff",
+              "surface": "#f7f9fb",
+              "on-secondary": "#f7f9ff",
+              "tertiary-fixed": "#a9cdef",
+              "on-primary-fixed-variant": "#00616f",
+              "inverse-on-surface": "#9a9d9f",
+              "on-secondary-fixed": "#314055",
+              "surface-container-high": "#e3e9ed",
+              "error-container": "#fa746f",
+              "surface-tint": "#006978",
+              "on-secondary-container": "#435368",
+              "error-dim": "#67040d",
+              "on-tertiary-fixed": "#03314c",
+              "error": "#a83836",
+              "on-primary-container": "#005763",
+              "secondary-fixed-dim": "#c5d6f0",
+              "secondary": "#506076",
+              "on-error-container": "#6e0a12",
+              "on-error": "#fff7f6",
+              "outline": "#747c80",
+              "primary-container": "#8debff",
+              "surface-container-low": "#f0f4f7",
+              "primary-fixed-dim": "#7fdcf0",
+              "on-tertiary-fixed-variant": "#294e6a",
+              "secondary-dim": "#44546a",
+              "secondary-fixed": "#d3e4fe",
+              "tertiary-dim": "#325673",
+              "on-primary": "#eefbff",
+              "tertiary-container": "#a9cdef",
+              "primary-fixed": "#8debff",
+              "on-surface-variant": "#596064",
+              "on-secondary-fixed-variant": "#4d5d73",
+              "primary-dim": "#005c69",
+              "inverse-surface": "#0b0f10",
+              "outline-variant": "#acb3b7",
+              "on-tertiary": "#f6f9ff",
+              "surface-dim": "#d4dbdf",
+              "background": "#f7f9fb",
+              "on-surface": "#2c3437",
+              "secondary-container": "#d3e4fe",
+              "on-tertiary-container": "#1f4561",
+              "surface-bright": "#f7f9fb",
+              "surface-variant": "#dce4e8",
+              "tertiary": "#3f637f",
+              "on-primary-fixed": "#00424c",
+              "surface-container-highest": "#dce4e8",
+              "tertiary-fixed-dim": "#9bc0e0",
+              "primary": "#006978"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'Manrope', sans-serif; }
+        .glass-effect {
+            background: rgba(247, 249, 251, 0.7);
+            backdrop-filter: blur(20px);
+        }
+        .primary-gradient {
+            background: linear-gradient(135deg, #006978 0%, #005c69 100%);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface flex min-h-screen">
+<!-- SideNavBar Component -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-[#f0f4f7] flex flex-col p-6 space-y-8 z-20 transition-all duration-300 ease-in-out">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 primary-gradient rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-sm" data-icon="auto_awesome">auto_awesome</span>
+</div>
+<span class="text-xl font-black text-[#007B83] font-headline">TrashSense AI</span>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center px-4 py-3 text-[#596064] font-['Inter'] text-sm tracking-wide hover:text-[#007B83] hover:bg-[#ffffff]/50 rounded-lg transition-all duration-300" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="dashboard">dashboard</span>
+                Overview
+            </a>
+<a class="flex items-center px-4 py-3 bg-white text-[#007B83] font-semibold rounded-lg shadow-sm font-['Inter'] text-sm tracking-wide transition-all duration-300" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="analytics">analytics</span>
+                Analysis
+            </a>
+<a class="flex items-center px-4 py-3 text-[#596064] font-['Inter'] text-sm tracking-wide hover:text-[#007B83] hover:bg-[#ffffff]/50 rounded-lg transition-all duration-300" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="assessment">assessment</span>
+                Reports
+            </a>
+<a class="flex items-center px-4 py-3 text-[#596064] font-['Inter'] text-sm tracking-wide hover:text-[#007B83] hover:bg-[#ffffff]/50 rounded-lg transition-all duration-300" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="database">database</span>
+                Data Center
+            </a>
+<a class="flex items-center px-4 py-3 text-[#596064] font-['Inter'] text-sm tracking-wide hover:text-[#007B83] hover:bg-[#ffffff]/50 rounded-lg transition-all duration-300" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="settings">settings</span>
+                Settings
+            </a>
+</nav>
+<div class="pt-6 border-t border-outline-variant/15 space-y-2">
+<a class="flex items-center px-4 py-2 text-[#596064] font-['Inter'] text-xs tracking-wide hover:text-[#007B83] transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="help">help</span>
+                Support
+            </a>
+<a class="flex items-center px-4 py-2 text-[#596064] font-['Inter'] text-xs tracking-wide hover:text-[#007B83] transition-colors" href="#">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="description">description</span>
+                Documentation
+            </a>
+</div>
+<div class="mt-auto bg-surface-container-high/50 p-4 rounded-xl flex items-center space-x-3">
+<img alt="Node Alpha Avatar" class="w-10 h-10 rounded-full object-cover" data-alt="close-up portrait of a sleek industrial server rack with blue status lights in a high-tech clean data center environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3UTtrKK8-YRPOQo0dxam6wFtpxTCrIf2RJKqrXz-vfBNJydrEVXIN9nfAxirk1ogabu7TCXqr7LKV-DznVbLyOev25lgz2EEtSWvB35Tqj5BxjRIVCfrN7Kw9c0DyFV_fLNaB-QzEqSryBAHnvhqbz1ltGuLj_HTV3HltFc7gXa0ZDmK2rfnWicYGLxZJQa-zyGCcoJMc4J763mA72gHGuvp1dx8EFaQ3MEaUlXxPqzDKBjMj9lzR6jgnXN7TCz1mX1PMEcbTKFE"/>
+<div>
+<p class="text-xs font-bold text-on-surface">Node Alpha</p>
+<div class="flex items-center space-x-1">
+<div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-tighter">Detection Active</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 flex-1 flex flex-col">
+<!-- TopNavBar Component -->
+<header class="flex justify-between items-center px-10 py-3 w-full bg-[#f7f9fb] border-b border-[#acb3b7]/15 z-10">
+<div class="flex items-center space-x-6">
+<h1 class="text-lg font-bold tracking-tight text-[#2c3437] font-headline uppercase tracking-widest text-[10px] text-on-surface-variant">Analysis Engine / Session v.4.0.2</h1>
+</div>
+<div class="flex items-center space-x-6">
+<div class="flex items-center bg-surface-container-low px-4 py-1.5 rounded-full border border-outline-variant/10">
+<span class="material-symbols-outlined text-outline text-sm mr-2" data-icon="search">search</span>
+<input class="bg-transparent border-none text-xs focus:ring-0 w-48 font-body" placeholder="Search analysis logs..." type="text"/>
+</div>
+<div class="flex items-center space-x-4">
+<button class="text-[#596064] hover:bg-[#eaeff2] p-2 rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="memory">memory</span>
+</button>
+<button class="text-[#596064] hover:bg-[#eaeff2] p-2 rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="cloud_done">cloud_done</span>
+</button>
+<div class="relative">
+<button class="text-[#596064] hover:bg-[#eaeff2] p-2 rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full border-2 border-surface"></span>
+</div>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/20">
+<img alt="Administrator profile picture" class="w-full h-full object-cover" data-alt="professional portrait of a confident technology executive woman in a modern architectural setting with soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDptWgebV_dZqb_lSGz5p4kzD75GkyoA0cHBq2P6wZqXb8gQh5RbYVrMPYL8zJh1cWdPg5FcBljsNTwFkiFn3KWmz-nduo61bVYgV2Y98ok7TB2LIxRO7MQAraFwH3QPMnJgAoVIBh9-xge2rboR8QLPvsBNokMEHIbjxQzePc1MzNumNEbTR69O6ViI2TvsfZfLwkFom1N_9iL05OcOUlS-kI5_YLr9oCOoJX8HxoJim6-TxntfAATNQYXlP16Qk1vyPE3BCBTQ-I"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Application Content -->
+<div class="p-10 flex gap-8 h-[calc(100vh-64px)] overflow-hidden">
+<!-- Left Sidebar: Session Selector -->
+<section class="w-80 flex flex-col space-y-6">
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/5">
+<h3 class="text-sm font-bold font-headline mb-4 flex items-center">
+<span class="material-symbols-outlined mr-2 text-primary" data-icon="video_library">video_library</span>
+                        Active Sessions
+                    </h3>
+<div class="space-y-3">
+<div class="p-3 bg-surface-container-low rounded-lg border-l-4 border-primary">
+<p class="text-[11px] font-bold text-primary mb-1">CURRENTLY VIEWING</p>
+<p class="text-sm font-semibold">Session_ALPHA_482</p>
+<p class="text-xs text-on-surface-variant">Oct 24, 2023 • 14:22:10</p>
+</div>
+<div class="p-3 bg-white hover:bg-surface-container-low rounded-lg border border-outline-variant/10 cursor-pointer transition-colors">
+<p class="text-sm font-medium">Session_GAMMA_912</p>
+<p class="text-xs text-on-surface-variant">Oct 24, 2023 • 12:05:45</p>
+</div>
+<div class="p-3 bg-white hover:bg-surface-container-low rounded-lg border border-outline-variant/10 cursor-pointer transition-colors">
+<p class="text-sm font-medium">Session_BETA_203</p>
+<p class="text-xs text-on-surface-variant">Oct 23, 2023 • 09:14:22</p>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/5 flex-1">
+<h3 class="text-sm font-bold font-headline mb-4">Metadata Specs</h3>
+<div class="space-y-4">
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant">Model</span>
+<span class="text-xs font-semibold px-2 py-0.5 bg-secondary-container text-on-secondary-container rounded">VLMnano v2.1</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant">Resolution</span>
+<span class="text-xs font-semibold">3840 x 2160 (4K)</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs text-on-surface-variant">FPS</span>
+<span class="text-xs font-semibold">60.00</span>
+</div>
+<div class="pt-4 border-t border-outline-variant/10">
+<p class="text-[10px] text-on-surface-variant uppercase mb-2">Confidence Heatmap</p>
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 94%;"></div>
+</div>
+<p class="text-[10px] text-right mt-1 text-primary font-bold">94.2% System Confidence</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Main Report Document Area -->
+<section class="flex-1 overflow-y-auto pr-4 space-y-8 pb-10">
+<!-- Report Header -->
+<div class="flex justify-between items-end">
+<div>
+<span class="text-[11px] font-bold text-primary-dim px-3 py-1 bg-primary-container/30 rounded-full">SYSTEM GENERATED REPORT</span>
+<h2 class="text-3xl font-extrabold font-headline mt-2 text-on-surface">Incident Semantic Analysis</h2>
+<p class="text-on-surface-variant mt-1">Ref: TS-AI-2023-X992 | Location: Zone 4, Terminal North</p>
+</div>
+<div class="flex space-x-3">
+<button class="flex items-center px-5 py-2.5 rounded-xl border border-outline-variant/20 hover:bg-surface-container-high transition-colors text-sm font-semibold">
+<span class="material-symbols-outlined mr-2 text-primary" data-icon="file_download">file_download</span>
+                            Export to PDF
+                        </button>
+<button class="flex items-center px-6 py-2.5 rounded-xl primary-gradient text-on-primary text-sm font-semibold shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined mr-2" data-icon="share">share</span>
+                            Share Report
+                        </button>
+</div>
+</div>
+<!-- Bento Grid Sections -->
+<div class="grid grid-cols-3 gap-6">
+<!-- Summary Card -->
+<div class="col-span-2 bg-surface-container-lowest p-8 rounded-2xl shadow-sm border border-outline-variant/10 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-32 h-32 primary-gradient opacity-5 rounded-bl-[100px]"></div>
+<h3 class="text-lg font-bold font-headline mb-4 flex items-center">
+<span class="material-symbols-outlined mr-2 text-primary" data-icon="summarize">summarize</span>
+                            Summary of Incident
+                        </h3>
+<p class="text-on-surface-variant leading-relaxed text-sm">
+                            At 14:22:10, Node Alpha detected a non-compliant waste disposal event. A single subject identified as "Entity_72" engaged in "Active Discarding" behavior outside of designated containment zones. The object was successfully tracked from point of release to point of rest. No security intervention was triggered as the item was flagged as "Low-Impact Organic."
+                        </p>
+<div class="mt-6 flex gap-4">
+<div class="bg-surface-container-low px-4 py-3 rounded-xl flex-1">
+<p class="text-[10px] text-on-surface-variant font-bold uppercase">Classification</p>
+<p class="text-sm font-bold">Public Littering</p>
+</div>
+<div class="bg-surface-container-low px-4 py-3 rounded-xl flex-1">
+<p class="text-[10px] text-on-surface-variant font-bold uppercase">Severity</p>
+<p class="text-sm font-bold text-secondary">Level 1 (Low)</p>
+</div>
+<div class="bg-surface-container-low px-4 py-3 rounded-xl flex-1">
+<p class="text-[10px] text-on-surface-variant font-bold uppercase">Automated Action</p>
+<p class="text-sm font-bold">Logged to DB</p>
+</div>
+</div>
+</div>
+<!-- Object Identification Card -->
+<div class="bg-surface-container-lowest p-8 rounded-2xl shadow-sm border border-outline-variant/10">
+<h3 class="text-lg font-bold font-headline mb-4 flex items-center">
+<span class="material-symbols-outlined mr-2 text-primary" data-icon="view_in_ar">view_in_ar</span>
+                            Object Breakdown
+                        </h3>
+<div class="flex flex-col items-center py-4">
+<div class="w-32 h-32 rounded-2xl bg-surface-container relative flex items-center justify-center mb-4 border border-outline-variant/10 overflow-hidden">
+<img alt="Waste object" class="w-full h-full object-cover grayscale opacity-50" data-alt="high-detail close up of a crumpled white paper coffee cup on a clean grey surface with sharp focus and professional studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnwJ33ZZ6Ck2h_IIAW4KWrXloOM8dTxscj5FPX5OI4zcUvaMFblpLs54PYCKlEp7j8aN8OElMCTwlROKPlnmgaHWkPj326cvc-Y_UJn1XSPxdhvcHHSvuWEY7lrzfYtGLs0efZA9FUpb4G7oLpwpIim7rItbWodc4Fe0Vpt557XlNhRYOh9OqZTgcjjHI_4v6a42auLVk06k3QlDcqx60aGd7qNNgWy5rhUm6EFXTjdOlTF-qjg3fs4EFQRqh-eHbsVdsq7VMnHRs"/>
+<div class="absolute inset-0 border-2 border-primary/40 rounded-2xl"></div>
+<div class="absolute top-1 left-1 bg-primary text-[8px] text-white px-1 font-bold">ID: OBJ_041</div>
+</div>
+<div class="text-center">
+<p class="text-sm font-bold">Cellulose Composite</p>
+<p class="text-xs text-on-surface-variant">Estimated mass: 12.5g</p>
+</div>
+</div>
+<div class="space-y-2 mt-2">
+<div class="flex justify-between text-xs">
+<span class="text-on-surface-variant">Recyclability</span>
+<span class="font-bold text-primary">88%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container rounded-full">
+<div class="h-full bg-primary" style="width: 88%;"></div>
+</div>
+</div>
+</div>
+<!-- Timeline Section -->
+<div class="col-span-3 bg-surface-container-lowest p-8 rounded-2xl shadow-sm border border-outline-variant/10">
+<h3 class="text-lg font-bold font-headline mb-8 flex items-center">
+<span class="material-symbols-outlined mr-2 text-primary" data-icon="timeline">timeline</span>
+                            Detailed Event Timeline
+                        </h3>
+<div class="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-outline-variant/30 before:to-transparent">
+<!-- Timeline Item 1 -->
+<div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
+<div class="flex items-center justify-center w-10 h-10 rounded-full border border-surface-container-highest bg-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+<span class="material-symbols-outlined text-xs text-primary" data-icon="farsight_24">farsight_digital</span>
+</div>
+<div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl bg-surface-container-low border border-outline-variant/5">
+<div class="flex items-center justify-between mb-1">
+<time class="font-headline font-bold text-xs text-primary">14:22:10.02</time>
+<span class="text-[10px] uppercase font-bold text-on-surface-variant">Detection</span>
+</div>
+<p class="text-xs text-on-surface">System lock acquired on Subject ID_72. Proximity to bin: 4.2m.</p>
+</div>
+</div>
+<!-- Timeline Item 2 -->
+<div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
+<div class="flex items-center justify-center w-10 h-10 rounded-full border border-surface-container-highest bg-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+<span class="material-symbols-outlined text-xs text-error" data-icon="release_alert">release_alert</span>
+</div>
+<div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl bg-surface-container-low border border-outline-variant/5">
+<div class="flex items-center justify-between mb-1">
+<time class="font-headline font-bold text-xs text-error">14:22:11.45</time>
+<span class="text-[10px] uppercase font-bold text-on-surface-variant">Incident</span>
+</div>
+<p class="text-xs text-on-surface">Subject released OBJ_041 into unregulated floor space. Trajectory vector analyzed.</p>
+</div>
+</div>
+<!-- Timeline Item 3 -->
+<div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
+<div class="flex items-center justify-center w-10 h-10 rounded-full border border-surface-container-highest bg-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+<span class="material-symbols-outlined text-xs text-secondary" data-icon="check_circle">check_circle</span>
+</div>
+<div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl bg-surface-container-low border border-outline-variant/5">
+<div class="flex items-center justify-between mb-1">
+<time class="font-headline font-bold text-xs text-secondary">14:22:12.89</time>
+<span class="text-[10px] uppercase font-bold text-on-surface-variant">Resolved</span>
+</div>
+<p class="text-xs text-on-surface">Object rest state confirmed. Semantic label "Litter" applied to session log.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Contextual FAB (Only for major navigation/action) -->
+<button class="fixed bottom-8 right-8 w-14 h-14 primary-gradient text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-105 transition-transform duration-200 group">
+<span class="material-symbols-outlined text-2xl" data-icon="add_notes">add_notes</span>
+<span class="absolute right-full mr-4 bg-on-surface text-surface text-xs px-3 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Add Annotation</span>
+</button>
+</body></html>

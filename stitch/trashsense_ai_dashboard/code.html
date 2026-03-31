@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TrashSense AI - Node Alpha Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "inverse-primary": "#8debff",
+                        "on-background": "#2c3437",
+                        "surface-container": "#eaeff2",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#f7f9fb",
+                        "on-secondary": "#f7f9ff",
+                        "tertiary-fixed": "#a9cdef",
+                        "on-primary-fixed-variant": "#00616f",
+                        "inverse-on-surface": "#9a9d9f",
+                        "on-secondary-fixed": "#314055",
+                        "surface-container-high": "#e3e9ed",
+                        "error-container": "#fa746f",
+                        "surface-tint": "#006978",
+                        "on-secondary-container": "#435368",
+                        "error-dim": "#67040d",
+                        "on-tertiary-fixed": "#03314c",
+                        "error": "#a83836",
+                        "on-primary-container": "#005763",
+                        "secondary-fixed-dim": "#c5d6f0",
+                        "secondary": "#506076",
+                        "on-error-container": "#6e0a12",
+                        "on-error": "#fff7f6",
+                        "outline": "#747c80",
+                        "primary-container": "#8debff",
+                        "surface-container-low": "#f0f4f7",
+                        "primary-fixed-dim": "#7fdcf0",
+                        "on-tertiary-fixed-variant": "#294e6a",
+                        "secondary-dim": "#44546a",
+                        "secondary-fixed": "#d3e4fe",
+                        "tertiary-dim": "#325673",
+                        "on-primary": "#eefbff",
+                        "tertiary-container": "#a9cdef",
+                        "primary-fixed": "#8debff",
+                        "on-surface-variant": "#596064",
+                        "on-secondary-fixed-variant": "#4d5d73",
+                        "primary-dim": "#005c69",
+                        "inverse-surface": "#0b0f10",
+                        "outline-variant": "#acb3b7",
+                        "on-tertiary": "#f6f9ff",
+                        "surface-dim": "#d4dbdf",
+                        "background": "#f7f9fb",
+                        "on-surface": "#2c3437",
+                        "secondary-container": "#d3e4fe",
+                        "on-tertiary-container": "#1f4561",
+                        "surface-bright": "#f7f9fb",
+                        "surface-variant": "#dce4e8",
+                        "tertiary": "#3f637f",
+                        "on-primary-fixed": "#00424c",
+                        "surface-container-highest": "#dce4e8",
+                        "tertiary-fixed-dim": "#9bc0e0",
+                        "primary": "#006978"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 1.5rem;
+        }
+        .glass-overlay {
+            background: rgba(247, 249, 251, 0.7);
+            backdrop-filter: blur(20px);
+        }
+        .ai-pulse {
+            width: 8px;
+            height: 8px;
+            background-color: #8debff;
+            border-radius: 50%;
+            filter: blur(2px);
+            box-shadow: 0 0 10px #8debff;
+        }
+    </style>
+</head>
+<body class="text-on-surface">
+<!-- SideNavBar Anchor -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-[#f0f4f7] dark:bg-slate-950 flex flex-col p-6 space-y-8 z-50 transition-all duration-300 ease-in-out">
+<div class="flex items-center gap-3">
+<span class="text-xl font-black text-[#007B83] font-headline">TrashSense AI</span>
+</div>
+<div class="flex items-center gap-3 p-3 bg-surface-container-high rounded-xl">
+<div class="w-10 h-10 rounded-lg overflow-hidden">
+<img alt="System Node Alpha" data-alt="High-tech server node interface icon with glowing teal circuitry patterns on a dark brushed metal background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBdrvsgl7Pc6l2_pg2v4dWsJymXWQxfry1FB5tXHYYvthk8Wd4Z4UInkQGvjICHNj5g1ZyGuPzSzraqPPPNMFFCxBYMXFohMhySNWCa3J8U9PlbTs1ihTKkj5DO8456dFHDQgu2gzxXFhFgstvMXcnDLlAWTP5OVDTiCStghHzLg2hij4WCpG_Bi7jdzNhVoN-K34q0Ice-XHUfcamDTV643bf9x3AXHHFexlebRIZbh5UflrFu0h4sa8z2QI3ANlj7d8zkAm1892I"/>
+</div>
+<div>
+<p class="font-headline font-bold text-sm text-on-surface">Node Alpha</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">Detection Active</p>
+</div>
+</div>
+<nav class="flex-grow space-y-2">
+<!-- Active Tab: Overview -->
+<a class="flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-800 text-[#007B83] font-semibold rounded-lg shadow-sm transition-all duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-['Inter'] text-sm tracking-wide">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#596064] dark:text-slate-400 hover:text-[#007B83] hover:bg-[#ffffff]/50 transition-all duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-['Inter'] text-sm tracking-wide">Analysis</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#596064] dark:text-slate-400 hover:text-[#007B83] hover:bg-[#ffffff]/50 transition-all duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="assessment">assessment</span>
+<span class="font-['Inter'] text-sm tracking-wide">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#596064] dark:text-slate-400 hover:text-[#007B83] hover:bg-[#ffffff]/50 transition-all duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="database">database</span>
+<span class="font-['Inter'] text-sm tracking-wide">Data Center</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#596064] dark:text-slate-400 hover:text-[#007B83] hover:bg-[#ffffff]/50 transition-all duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-['Inter'] text-sm tracking-wide">Settings</span>
+</a>
+</nav>
+<button class="w-full py-3 px-4 bg-gradient-to-br from-primary to-primary-dim text-white rounded-xl font-headline font-bold text-sm shadow-md hover:scale-95 transition-transform duration-200">
+            Export Analysis
+        </button>
+<div class="pt-6 border-t border-outline-variant/15 space-y-2">
+<a class="flex items-center gap-3 px-4 py-2 text-[#596064] dark:text-slate-400 hover:text-[#007B83] transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="text-xs font-['Inter']">Support</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-[#596064] dark:text-slate-400 hover:text-[#007B83] transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="text-xs font-['Inter']">Documentation</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 min-h-screen flex flex-col">
+<!-- TopNavBar Anchor -->
+<header class="flex justify-between items-center px-10 py-3 w-full bg-[#f7f9fb] dark:bg-slate-900 border-b border-[#acb3b7]/15 z-40">
+<div class="flex items-center gap-8">
+<h1 class="text-lg font-bold tracking-tight text-[#2c3437] dark:text-slate-100 font-headline">Node Alpha Dashboard</h1>
+<nav class="hidden md:flex space-x-6">
+<a class="text-[#007B83] border-b-2 border-[#007B83] font-['Manrope'] font-medium text-sm py-1" href="#">Live Stream</a>
+<a class="text-[#596064] dark:text-slate-400 font-['Manrope'] font-medium text-sm hover:bg-[#eaeff2] px-2 py-1 rounded transition-colors" href="#">History</a>
+<a class="text-[#596064] dark:text-slate-400 font-['Manrope'] font-medium text-sm hover:bg-[#eaeff2] px-2 py-1 rounded transition-colors" href="#">Nodes</a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative w-64">
+<input class="w-full bg-surface-container-lowest border-none rounded-full py-1.5 px-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none placeholder:text-outline-variant" placeholder="Search events..." type="text"/>
+<span class="material-symbols-outlined absolute right-3 top-1.5 text-outline text-sm" data-icon="search">search</span>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<button class="material-symbols-outlined hover:text-primary transition-colors" data-icon="memory">memory</button>
+<button class="material-symbols-outlined hover:text-primary transition-colors" data-icon="cloud_done">cloud_done</button>
+<div class="relative">
+<button class="material-symbols-outlined hover:text-primary transition-colors" data-icon="notifications">notifications</button>
+<span class="absolute -top-1 -right-1 w-2 h-2 bg-error rounded-full"></span>
+</div>
+</div>
+<div class="w-8 h-8 rounded-full overflow-hidden border-2 border-primary-container">
+<img alt="Administrator profile picture" data-alt="Professional headshot of a technical administrator in a bright, modern office setting with soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLI7zYHvMcmwX5o3-rVhcEiLv1q7BKlbronnka3e0qJIaCChNj6F_iJHYiNP7fyUdZ-xioeBYLPmou3LMKqSv6qGIfISboPqjpPtY-l_nN8wh9Ww2PB9yVJh82_obXtWy6TDohy63XrMRyvx1I9oqAwSwmAq6ZqRs4NoM2G_KHQ1cpFtF1T7Zb6FfBSafo-073Ie4pdY2H40eLS0ZNIXsaUg-uf1NiqS-T3oGqrnrbuNnSTYmBj3FuqbsM-kmXJ9DV1KwPCCQ6SJA"/>
+</div>
+</div>
+</header>
+<!-- Dashboard Canvas -->
+<div class="p-10 space-y-8 flex-grow">
+<!-- Hero Grid: Video + Event Log -->
+<div class="bento-grid">
+<!-- Video Player Section -->
+<div class="col-span-12 lg:col-span-9 bg-surface-container-lowest rounded-[1.5rem] overflow-hidden relative shadow-sm">
+<div class="aspect-video bg-inverse-surface relative group">
+<!-- Simulated AI Video Feed -->
+<img class="w-full h-full object-cover opacity-80" data-alt="Wide-angle security camera view of a busy urban intersection with high-tech digital bounding boxes around pedestrians, vehicles, and litter objects" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC83f8p7ztYljLrivuudhwFwQkMgi-90EN9ghzkYEremvj-0j4i7jYxk-VuxlxY0LWuHgT4uPEpD71CpbHAEfDGFwZaEP59T1pux1FSB7tx8QLaIQsYKrPoEyY3OWO2GA7bjUeid_LTrbmRwxxzb3phOiPWtmXWUzObfwU8ss8GKhLMXJygNWLgcj-lXXIog3jGfjbQgNFAjwD1TXS5CtHJ96IYHL4csZKmsFHdyQoJRMedSmktyPLPrTR0__r5PuL_3QmpeZ1UYZ4"/>
+<!-- AI Overlays (BoTSort IDs) -->
+<div class="absolute top-0 left-0 w-full h-full pointer-events-none">
+<!-- Detection 1: Trash -->
+<div class="absolute top-1/2 left-1/3 border-2 border-error-container w-24 h-16 rounded-sm">
+<span class="absolute -top-6 left-0 bg-error-container text-white text-[10px] px-1.5 py-0.5 rounded font-mono">Trash #492 (94%)</span>
+</div>
+<!-- Detection 2: Car -->
+<div class="absolute top-1/4 right-1/4 border-2 border-primary-container w-48 h-32 rounded-sm">
+<span class="absolute -top-6 left-0 bg-primary-container text-on-primary-container text-[10px] px-1.5 py-0.5 rounded font-mono">Car #102 (98%)</span>
+</div>
+<!-- Detection 3: Person -->
+<div class="absolute bottom-1/4 left-1/4 border-2 border-tertiary-container w-20 h-48 rounded-sm">
+<span class="absolute -top-6 left-0 bg-tertiary-container text-on-tertiary-container text-[10px] px-1.5 py-0.5 rounded font-mono">Person #88 (91%)</span>
+</div>
+</div>
+<!-- Top Controls Overlay -->
+<div class="absolute top-4 left-4 flex gap-2">
+<span class="bg-black/50 backdrop-blur-md text-white text-[10px] px-3 py-1 rounded-full flex items-center gap-2">
+<span class="ai-pulse"></span> REC: 04:12:44
+                            </span>
+<span class="bg-black/50 backdrop-blur-md text-white text-[10px] px-3 py-1 rounded-full uppercase tracking-tighter font-bold">4K | 60 FPS</span>
+</div>
+<!-- Bottom Controls Overlay -->
+<div class="absolute bottom-4 left-4 right-4 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
+<div class="flex gap-4">
+<button class="material-symbols-outlined text-white" data-icon="play_arrow">play_arrow</button>
+<button class="material-symbols-outlined text-white" data-icon="volume_up">volume_up</button>
+</div>
+<div class="flex gap-4">
+<button class="material-symbols-outlined text-white" data-icon="settings">settings</button>
+<button class="material-symbols-outlined text-white" data-icon="fullscreen">fullscreen</button>
+</div>
+</div>
+</div>
+<!-- Video Stats Footer -->
+<div class="px-6 py-4 flex items-center justify-between border-t border-surface-container-high bg-surface-container-low">
+<div class="flex gap-8">
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">Active Model</span>
+<span class="text-sm font-headline font-bold text-primary">best.pt ensemble</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">Inference Latency</span>
+<span class="text-sm font-headline font-bold">12.4ms</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">Tracked Objects</span>
+<span class="text-sm font-headline font-bold">24</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-[10px] font-bold text-on-surface-variant">SOURCE: CAM-04A-WEST</span>
+<button class="px-4 py-1.5 bg-surface-container-highest text-on-surface rounded-full text-xs font-bold hover:bg-surface-variant transition-colors">Switch Camera</button>
+</div>
+</div>
+</div>
+<!-- Event Log Section -->
+<div class="col-span-12 lg:col-span-3 bg-surface-container-lowest rounded-[1.5rem] shadow-sm flex flex-col overflow-hidden h-[540px]">
+<div class="p-6 border-b border-surface-container-high flex justify-between items-center">
+<h2 class="font-headline font-bold text-sm">Real-time Event Log</h2>
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="tune">tune</span>
+</div>
+<div class="flex-grow overflow-y-auto p-4 space-y-4">
+<!-- Log Item 1 -->
+<div class="p-3 bg-surface-container-low rounded-xl border-l-4 border-error transition-all hover:bg-surface-container-high">
+<div class="flex justify-between items-start mb-1">
+<span class="text-[10px] font-bold text-error uppercase">Trash Detected</span>
+<span class="text-[10px] text-on-surface-variant">14:22:01</span>
+</div>
+<p class="text-xs text-on-surface leading-snug">Multiple litter objects identified near sector G4.</p>
+<p class="text-[9px] mt-2 text-on-surface-variant font-mono">Model: VLMnano-v2</p>
+</div>
+<!-- Log Item 2 -->
+<div class="p-3 bg-white rounded-xl border-l-4 border-primary transition-all hover:bg-surface-container-low">
+<div class="flex justify-between items-start mb-1">
+<span class="text-[10px] font-bold text-primary uppercase">Vehicle Logged</span>
+<span class="text-[10px] text-on-surface-variant">14:21:45</span>
+</div>
+<p class="text-xs text-on-surface leading-snug">Silver Sedan (ID: 102) entered restricted zone.</p>
+<p class="text-[9px] mt-2 text-on-surface-variant font-mono">Model: yolo11n.pt</p>
+</div>
+<!-- Log Item 3 -->
+<div class="p-3 bg-white rounded-xl border-l-4 border-tertiary transition-all hover:bg-surface-container-low">
+<div class="flex justify-between items-start mb-1">
+<span class="text-[10px] font-bold text-tertiary uppercase">Cluster Group</span>
+<span class="text-[10px] text-on-surface-variant">14:21:30</span>
+</div>
+<p class="text-xs text-on-surface leading-snug">Pedestrian group formed (IDs: 88, 89, 92).</p>
+<p class="text-[9px] mt-2 text-on-surface-variant font-mono">Model: BoTSort</p>
+</div>
+<!-- Log Item 4 -->
+<div class="p-3 bg-white rounded-xl border-l-4 border-outline transition-all hover:bg-surface-container-low">
+<div class="flex justify-between items-start mb-1">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase">System Check</span>
+<span class="text-[10px] text-on-surface-variant">14:20:00</span>
+</div>
+<p class="text-xs text-on-surface leading-snug">Health heartbeat signal received from Node Alpha.</p>
+</div>
+</div>
+<div class="p-4 bg-surface-container-low">
+<button class="w-full py-2 bg-surface-container-high rounded-lg text-xs font-bold text-on-surface-variant hover:text-primary transition-colors">View All Logs</button>
+</div>
+</div>
+</div>
+<!-- Model Status Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Card 1: best.pt -->
+<div class="bg-surface-container-lowest p-6 rounded-[1.5rem] shadow-sm border-b-4 border-primary/20">
+<div class="flex justify-between items-start mb-6">
+<div class="w-10 h-10 bg-primary-container/20 rounded-xl flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<span class="px-3 py-1 bg-secondary-container text-on-secondary-container text-[10px] font-bold rounded-full">ACTIVE</span>
+</div>
+<h3 class="font-headline font-extrabold text-on-surface mb-1">best.pt</h3>
+<p class="text-xs text-on-surface-variant mb-4">Master Ensemble Model</p>
+<div class="space-y-3">
+<div class="flex justify-between items-center text-xs">
+<span class="text-on-surface-variant">Confidence Score</span>
+<span class="font-bold">98.2%</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[98%]"></div>
+</div>
+<div class="flex justify-between items-center text-xs pt-1">
+<span class="text-on-surface-variant">GPU Load</span>
+<span class="font-bold">42%</span>
+</div>
+</div>
+</div>
+<!-- Card 2: yolo11n.pt -->
+<div class="bg-surface-container-lowest p-6 rounded-[1.5rem] shadow-sm border-b-4 border-tertiary/20">
+<div class="flex justify-between items-start mb-6">
+<div class="w-10 h-10 bg-tertiary-container/20 rounded-xl flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined" data-icon="bolt">bolt</span>
+</div>
+<span class="px-3 py-1 bg-secondary-container text-on-secondary-container text-[10px] font-bold rounded-full">ACTIVE</span>
+</div>
+<h3 class="font-headline font-extrabold text-on-surface mb-1">yolo11n.pt</h3>
+<p class="text-xs text-on-surface-variant mb-4">Fast Detection Engine</p>
+<div class="space-y-3">
+<div class="flex justify-between items-center text-xs">
+<span class="text-on-surface-variant">Frame Rate</span>
+<span class="font-bold">120 FPS</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full w-[85%]"></div>
+</div>
+<div class="flex justify-between items-center text-xs pt-1">
+<span class="text-on-surface-variant">Memory Usage</span>
+<span class="font-bold">1.2 GB</span>
+</div>
+</div>
+</div>
+<!-- Card 3: VLMnano -->
+<div class="bg-surface-container-lowest p-6 rounded-[1.5rem] shadow-sm border-b-4 border-error/20">
+<div class="flex justify-between items-start mb-6">
+<div class="w-10 h-10 bg-error-container/20 rounded-xl flex items-center justify-center text-error">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+</div>
+<span class="px-3 py-1 bg-secondary-container text-on-secondary-container text-[10px] font-bold rounded-full">ACTIVE</span>
+</div>
+<h3 class="font-headline font-extrabold text-on-surface mb-1">VLMnano</h3>
+<p class="text-xs text-on-surface-variant mb-4">Visual Language Model</p>
+<div class="space-y-3">
+<div class="flex justify-between items-center text-xs">
+<span class="text-on-surface-variant">Context Precision</span>
+<span class="font-bold">92.7%</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-error h-full w-[92%]"></div>
+</div>
+<div class="flex justify-between items-center text-xs pt-1">
+<span class="text-on-surface-variant">Token Latency</span>
+<span class="font-bold">45ms</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Insights Section (Asymmetric / Experimental) -->
+<div class="grid grid-cols-12 gap-6 pb-12">
+<div class="col-span-12 md:col-span-8 bg-surface-container-high rounded-[2rem] p-8 relative overflow-hidden flex flex-col justify-end min-h-[300px]">
+<div class="absolute top-0 right-0 w-1/2 h-full opacity-10">
+<img alt="Analytic Visualization" class="w-full h-full object-cover" data-alt="Stylized blue and teal line graph showing fluctuating trash detection trends over time with clean white background and minimalist grid lines" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvL2taA3RmU6MoMLnzWkzJdTIyhjDV9bg3ag1Yo09aaPzfXA4s-5kDfMq6fvneL_oH5Wr-iIIm3z3dmOgXkzfGCrxsIh7OqRIr932pIAkZ4E_nuvZ1Cp43_D2ln8u3Z1EmoQ9WludotCZA3FZ0_oVnHuIhHHhMKvwQ7i69ZYOrtctMZoCXELSfuKsr-QH9TKBpvUkFjK3_Ik6ZGkC4mQ_QgPVJlj7iLvDN18TFt7P7PCGcThAwPdOxOWxr3BZCz-gTydWo4wImzc4"/>
+</div>
+<div class="relative z-10">
+<span class="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2 block">Weekly Summary</span>
+<h2 class="text-4xl font-headline font-black text-on-surface mb-4 leading-tight">Trash Detection is down <span class="text-primary">12.5%</span> this week.</h2>
+<p class="text-sm text-on-surface-variant max-w-md leading-relaxed">System optimization on Node Alpha has successfully reduced false positives in low-light environments by 18%.</p>
+<div class="mt-8 flex gap-4">
+<button class="px-6 py-2 bg-primary text-on-primary rounded-xl font-bold text-xs">View Full Analysis</button>
+<button class="px-6 py-2 bg-surface-container-lowest text-on-surface rounded-xl font-bold text-xs">Download CSV</button>
+</div>
+</div>
+</div>
+<div class="col-span-12 md:col-span-4 grid grid-rows-2 gap-6">
+<div class="bg-surface-container-lowest rounded-[2rem] p-6 shadow-sm flex items-center gap-6">
+<div class="w-16 h-16 rounded-2xl bg-primary/5 flex items-center justify-center">
+<span class="text-2xl font-black text-primary font-headline">88%</span>
+</div>
+<div>
+<p class="text-xs text-on-surface-variant font-bold uppercase tracking-widest">Model Drift</p>
+<p class="text-sm font-headline font-bold">Stable performance</p>
+</div>
+</div>
+<div class="bg-inverse-surface rounded-[2rem] p-6 shadow-xl flex flex-col justify-center">
+<div class="flex items-center gap-3 mb-2">
+<span class="ai-pulse"></span>
+<p class="text-white text-xs font-bold uppercase tracking-widest">AI Suggestion</p>
+</div>
+<p class="text-white/80 text-sm leading-relaxed">Consider recalibrating VLMnano for fog conditions expected tomorrow at 06:00 AM.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

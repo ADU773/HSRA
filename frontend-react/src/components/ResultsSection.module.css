@@ -1,0 +1,83 @@
+.section { padding: 64px 0; }
+
+.topBar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 36px;
+}
+.title { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.5px; }
+.meta  { color: var(--text-muted); font-size: 0.88rem; margin-top: 4px; }
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Buttons */
+.btnPrimary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: var(--radius-sm); border: none;
+  background: var(--primary); color: #fff;
+  font-family: var(--font); font-weight: 600; font-size: 0.9rem;
+  cursor: pointer; transition: all var(--transition);
+  box-shadow: 0 2px 8px var(--primary-glow);
+  white-space: nowrap;
+}
+.btnPrimary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+
+.btnOutline {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-2);
+  background: transparent; color: var(--text-2);
+  font-family: var(--font); font-weight: 600; font-size: 0.9rem;
+  cursor: pointer; transition: all var(--transition);
+  white-space: nowrap;
+}
+.btnOutline:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+
+.btnSubtle {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text-muted);
+  font-family: var(--font); font-weight: 600; font-size: 0.9rem;
+  cursor: pointer; transition: all var(--transition);
+  white-space: nowrap;
+}
+.btnSubtle:hover { background: var(--border); color: var(--text-2); }
+
+/* Two-column report grid */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Print-only report block */
+.printReport {
+  padding: 40px 0;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+.printReport h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 6px; }
+.printReport h2 { font-size: 1.05rem; font-weight: 700; margin: 24px 0 8px; border-bottom: 2px solid var(--border); padding-bottom: 4px; }
+.printReport p  { margin-bottom: 6px; }
+
+@media (max-width: 640px) {
+  .topBar { flex-direction: column; }
+  .actions { width: 100%; }
+}

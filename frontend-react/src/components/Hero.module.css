@@ -1,0 +1,87 @@
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #eef2ff 0%, #f8f9fc 50%, #f0fdf8 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 96px 24px 72px;
+  text-align: center;
+}
+.bgCircles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.circle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.35;
+}
+.c1 { width: 420px; height: 420px; background: radial-gradient(circle, #c7d7ff, transparent 70%); top: -100px; left: -80px; animation: float1 8s ease-in-out infinite; }
+.c2 { width: 320px; height: 320px; background: radial-gradient(circle, #a7f3d0, transparent 70%); bottom: -80px; right: 60px; animation: float2 10s ease-in-out infinite; }
+.c3 { width: 200px; height: 200px; background: radial-gradient(circle, #fde68a, transparent 70%); top: 40px; right: 200px; animation: float1 7s ease-in-out infinite 2s; }
+
+.content { position: relative; z-index: 1; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid rgba(79,110,247,0.2);
+  margin-bottom: 24px;
+}
+.title {
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -1px;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+.subtitle {
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  max-width: 580px;
+  margin: 0 auto 36px;
+  line-height: 1.75;
+}
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 14px 28px;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 14px var(--primary-glow);
+  transition: background var(--transition), box-shadow var(--transition), transform var(--transition);
+}
+.cta:hover {
+  background: var(--primary-dark);
+  box-shadow: 0 6px 20px rgba(79,110,247,0.35);
+  transform: translateY(-2px);
+  color: #fff;
+}
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 48px;
+  position: relative;
+  z-index: 1;
+}
+.pill {
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 7px 16px;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  box-shadow: var(--shadow-sm);
+  animation: slideUp 0.5s ease both;
+}

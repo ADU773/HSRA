@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Data Center | TrashSense AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "inverse-primary": "#8debff",
+              "on-background": "#2c3437",
+              "surface-container": "#eaeff2",
+              "surface-container-lowest": "#ffffff",
+              "surface": "#f7f9fb",
+              "on-secondary": "#f7f9ff",
+              "tertiary-fixed": "#a9cdef",
+              "on-primary-fixed-variant": "#00616f",
+              "inverse-on-surface": "#9a9d9f",
+              "on-secondary-fixed": "#314055",
+              "surface-container-high": "#e3e9ed",
+              "error-container": "#fa746f",
+              "surface-tint": "#006978",
+              "on-secondary-container": "#435368",
+              "error-dim": "#67040d",
+              "on-tertiary-fixed": "#03314c",
+              "error": "#a83836",
+              "on-primary-container": "#005763",
+              "secondary-fixed-dim": "#c5d6f0",
+              "secondary": "#506076",
+              "on-error-container": "#6e0a12",
+              "on-error": "#fff7f6",
+              "outline": "#747c80",
+              "primary-container": "#8debff",
+              "surface-container-low": "#f0f4f7",
+              "primary-fixed-dim": "#7fdcf0",
+              "on-tertiary-fixed-variant": "#294e6a",
+              "secondary-dim": "#44546a",
+              "secondary-fixed": "#d3e4fe",
+              "tertiary-dim": "#325673",
+              "on-primary": "#eefbff",
+              "tertiary-container": "#a9cdef",
+              "primary-fixed": "#8debff",
+              "on-surface-variant": "#596064",
+              "on-secondary-fixed-variant": "#4d5d73",
+              "primary-dim": "#005c69",
+              "inverse-surface": "#0b0f10",
+              "outline-variant": "#acb3b7",
+              "on-tertiary": "#f6f9ff",
+              "surface-dim": "#d4dbdf",
+              "background": "#f7f9fb",
+              "on-surface": "#2c3437",
+              "secondary-container": "#d3e4fe",
+              "on-tertiary-container": "#1f4561",
+              "surface-bright": "#f7f9fb",
+              "surface-variant": "#dce4e8",
+              "tertiary": "#3f637f",
+              "on-primary-fixed": "#00424c",
+              "surface-container-highest": "#dce4e8",
+              "tertiary-fixed-dim": "#9bc0e0",
+              "primary": "#006978"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-surface">
+<!-- SideNavBar Shell -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-[#f0f4f7] flex flex-col p-6 space-y-8 font-['Inter'] text-sm tracking-wide">
+<div class="flex items-center space-x-3 mb-4">
+<div class="w-10 h-10 bg-primary-container rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="memory">memory</span>
+</div>
+<div>
+<h2 class="text-xl font-black text-[#007B83]">Node Alpha</h2>
+<p class="text-[10px] uppercase tracking-widest text-on-surface-variant flex items-center">
+<span class="w-1.5 h-1.5 bg-primary-fixed rounded-full mr-1.5 shadow-[0_0_8px_#8debff]"></span>
+                    Detection Active
+                </p>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center px-4 py-3 text-[#596064] hover:text-[#007B83] hover:bg-[#ffffff]/50 transition-all duration-300 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="dashboard">dashboard</span>
+                Overview
+            </a>
+<a class="flex items-center px-4 py-3 text-[#596064] hover:text-[#007B83] hover:bg-[#ffffff]/50 transition-all duration-300 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="analytics">analytics</span>
+                Analysis
+            </a>
+<a class="flex items-center px-4 py-3 text-[#596064] hover:text-[#007B83] hover:bg-[#ffffff]/50 transition-all duration-300 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="assessment">assessment</span>
+                Reports
+            </a>
+<!-- Active Navigation State for Data Center -->
+<a class="flex items-center px-4 py-3 bg-white text-[#007B83] font-semibold rounded-lg shadow-sm transition-all duration-300 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="database">database</span>
+                Data Center
+            </a>
+<a class="flex items-center px-4 py-3 text-[#596064] hover:text-[#007B83] hover:bg-[#ffffff]/50 transition-all duration-300 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="settings">settings</span>
+                Settings
+            </a>
+</nav>
+<div class="pt-6 border-t border-outline-variant/10 space-y-1">
+<a class="flex items-center px-4 py-2 text-[#596064] hover:text-[#007B83] hover:bg-[#ffffff]/50 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="help">help</span>
+                Support
+            </a>
+<a class="flex items-center px-4 py-2 text-[#596064] hover:text-[#007B83] hover:bg-[#ffffff]/50 transition-all duration-300" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="description">description</span>
+                Documentation
+            </a>
+<button class="mt-6 w-full py-3 bg-gradient-to-br from-primary to-primary-dim text-white rounded-xl font-bold shadow-lg hover:scale-95 transition-transform duration-200">
+                Export Analysis
+            </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 min-h-screen flex flex-col">
+<!-- TopNavBar Shell -->
+<header class="flex justify-between items-center px-10 py-3 w-full bg-[#f7f9fb] border-b border-[#acb3b7]/15 font-['Manrope'] font-medium text-sm">
+<div class="flex items-center space-x-8">
+<h1 class="text-lg font-bold tracking-tight text-[#2c3437]">TrashSense AI</h1>
+<div class="hidden md:flex space-x-6">
+<a class="text-[#596064] hover:bg-[#eaeff2] px-3 py-1 rounded transition-colors" href="#">Infrastructure</a>
+<a class="text-[#007B83] border-b-2 border-[#007B83] px-3 py-1 transition-colors" href="#">Global Logs</a>
+<a class="text-[#596064] hover:bg-[#eaeff2] px-3 py-1 rounded transition-colors" href="#">Alert Config</a>
+</div>
+</div>
+<div class="flex items-center space-x-6">
+<div class="relative group">
+<span class="absolute inset-y-0 left-3 flex items-center text-outline">
+<span class="material-symbols-outlined text-sm" data-icon="search">search</span>
+</span>
+<input class="pl-10 pr-4 py-1.5 bg-surface-container-low border-none rounded-lg text-xs focus:ring-1 focus:ring-primary w-64 transition-all" placeholder="Search logs..." type="text"/>
+</div>
+<div class="flex items-center space-x-4 text-on-surface-variant">
+<button class="hover:bg-[#eaeff2] p-1.5 rounded-full transition-colors"><span class="material-symbols-outlined" data-icon="memory">memory</span></button>
+<button class="hover:bg-[#eaeff2] p-1.5 rounded-full transition-colors"><span class="material-symbols-outlined" data-icon="cloud_done">cloud_done</span></button>
+<button class="hover:bg-[#eaeff2] p-1.5 rounded-full transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full"></span>
+</button>
+</div>
+<img alt="Administrator profile picture" class="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container" data-alt="Professional headshot of a middle-aged male administrator in a light grey suit with a clean office background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAiat0cbjAY867fNf4OTN8o0PQHR_aZW24upkThjQkNuFvy8H2UKy3P_LpurPvDJN64iJNKYZmpEiSRMmgHEbNYxxIICFZc9iOX78RZXahyOn7Q-MtQyf1BimgdJnNwpnTQW40tyhBpH1rjOlGF7HLpvhcRQRuDgKE5-BiZzlazOQeDOYMbcNjWoGL7K05vc6C6Gwna-tSpLE0ULoc99cF_oabyd0v-Hpkd4D53xt3UPbiDlblk__8hquA-s32L-6E-MqhXeL8A-Ic"/>
+</div>
+</header>
+<!-- Page Content -->
+<section class="p-10 flex-1">
+<div class="mb-10">
+<h2 class="text-3xl font-extrabold text-on-surface font-headline tracking-tight">Data &amp; Logs Center</h2>
+<p class="text-on-surface-variant mt-1">Audit historical inference results and export detection metadata.</p>
+</div>
+<!-- Filter Section -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+<div class="bg-surface-container-low p-4 rounded-xl">
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant mb-2 tracking-widest">Date Range</label>
+<div class="flex items-center space-x-2 bg-surface-container-lowest p-2 rounded-lg border border-outline-variant/15">
+<span class="material-symbols-outlined text-outline text-lg" data-icon="calendar_today">calendar_today</span>
+<input class="bg-transparent border-none text-xs w-full focus:ring-0" type="text" value="Oct 01, 2023 - Oct 24, 2023"/>
+</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded-xl">
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant mb-2 tracking-widest">Inference Model</label>
+<select class="w-full bg-surface-container-lowest border-outline-variant/15 rounded-lg text-xs py-2 focus:ring-primary focus:border-primary">
+<option>TS-Vision-Pro-v4.2 (Active)</option>
+<option>TS-Standard-v3.1</option>
+<option>Experimental-Edge-v0.9</option>
+</select>
+</div>
+<div class="bg-surface-container-low p-4 rounded-xl">
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant mb-2 tracking-widest">Confidence Threshold</label>
+<div class="flex items-center space-x-4">
+<input class="w-full accent-primary" type="range"/>
+<span class="text-xs font-bold text-primary">85%</span>
+</div>
+</div>
+<div class="flex items-end">
+<button class="w-full h-12 bg-surface-container-high text-primary font-bold rounded-xl flex items-center justify-center hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined mr-2" data-icon="filter_list">filter_list</span>
+                        Apply Advanced Filters
+                    </button>
+</div>
+</div>
+<!-- Bento Stats Grid (Minimalist) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] flex justify-between items-center">
+<div>
+<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">Total Inferences</p>
+<p class="text-2xl font-black text-on-surface mt-1">1,284,091</p>
+</div>
+<div class="w-12 h-12 bg-secondary-container/30 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary" data-icon="monitoring">monitoring</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] flex justify-between items-center">
+<div>
+<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">Avg Confidence</p>
+<p class="text-2xl font-black text-on-surface mt-1">94.2%</p>
+</div>
+<div class="w-12 h-12 bg-primary-container/30 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="verified">verified</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] flex justify-between items-center">
+<div>
+<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">Data Storage</p>
+<p class="text-2xl font-black text-on-surface mt-1">84.2 GB</p>
+</div>
+<div class="w-12 h-12 bg-tertiary-container/30 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary" data-icon="hard_drive">hard_drive</span>
+</div>
+</div>
+</div>
+<!-- Table Section -->
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_30px_rgba(0,0,0,0.03)] overflow-hidden">
+<div class="px-8 py-6 border-b border-surface-container flex justify-between items-center">
+<h3 class="font-headline font-bold text-on-surface">Historical Inference Reports</h3>
+<div class="flex space-x-3">
+<button class="px-4 py-2 bg-surface-container-low text-on-surface-variant rounded-lg text-xs font-bold flex items-center hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-sm mr-2" data-icon="cloud_download">cloud_download</span>
+                            Bulk Export
+                        </button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low/50">
+<th class="px-8 py-4 text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">Timestamp</th>
+<th class="px-8 py-4 text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">Video Filename</th>
+<th class="px-8 py-4 text-[10px] uppercase font-bold text-on-surface-variant tracking-widest text-center">Trash</th>
+<th class="px-8 py-4 text-[10px] uppercase font-bold text-on-surface-variant tracking-widest text-center">People</th>
+<th class="px-8 py-4 text-[10px] uppercase font-bold text-on-surface-variant tracking-widest text-center">Cars</th>
+<th class="px-8 py-4 text-[10px] uppercase font-bold text-on-surface-variant tracking-widest text-right">Reports</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container">
+<tr class="hover:bg-surface-container-low/30 transition-colors group">
+<td class="px-8 py-4">
+<div class="text-sm font-semibold">2023-10-24</div>
+<div class="text-[10px] text-outline">14:22:10 UTC</div>
+</td>
+<td class="px-8 py-4">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded bg-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="movie">movie</span>
+</div>
+<span class="text-sm font-medium text-on-surface">N-24-SEC-CAM-08.mp4</span>
+</div>
+</td>
+<td class="px-8 py-4 text-center">
+<span class="px-2 py-1 bg-primary-container/20 text-on-primary-container text-xs font-bold rounded-full">142</span>
+</td>
+<td class="px-8 py-4 text-center">
+<span class="px-2 py-1 bg-secondary-container/40 text-on-secondary-container text-xs font-bold rounded-full">18</span>
+</td>
+<td class="px-8 py-4 text-center">
+<span class="px-2 py-1 bg-surface-container text-on-surface-variant text-xs font-bold rounded-full">4</span>
+</td>
+<td class="px-8 py-4 text-right">
+<div class="flex justify-end space-x-2">
+<button class="p-2 hover:bg-primary-container/20 text-primary rounded-lg transition-colors" title="Download CSV">
+<span class="material-symbols-outlined" data-icon="file_download">file_download</span>
+</button>
+<button class="p-2 hover:bg-surface-container-high text-on-surface-variant rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/30 transition-colors group">
+<td class="px-8 py-4">
+<div class="text-sm font-semibold">2023-10-24</div>
+<div class="text-[10px] text-outline">12:05:45 UTC</div>
+</td>
+<td class="px-8 py-4">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded bg-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="movie">movie</span>
+</div>
+<span class="text-sm font-medium text-on-surface">W-12-STREET-FLOW.mp4</span>
+</div>
+</td>
+<td class="px-8 py-4 text-center">
+<span class="px-2 py-1 bg-primary-container/20 text-on-primary-container text-xs font-bold rounded-full">28</span>
+</td>
+<td class="px-8 py-4 text-center">
+<span class="px-2 py-1 bg-secondary-container/40 text-on-secondary-container text-xs font-bold rounded-full">156</span>
+</td>
+<td class="px-8 py-4 text-center">
+<span class="px-2 py-1 bg-surface-container text-on-surface-variant text-xs font-bold rounded-full">42</span>
+</td>
+<td class="px-8 py-4 text-right">
+<div class="flex justify-end space-x-2">
+<button class="p-2 hover:bg-primary-container/20 text-primary rounded-lg transition-colors" title="Download CSV">
+<span class="material-symbols-outlined" data-icon="file_download">file_download</span>
+</button>
+<button class="p-2 hover:bg-surface-container-high text-on-surface-variant rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/30 transition-colors group">
+<td class="px-8 py-4">
+<div class="text-sm font-semibold">2023-10-23</div>
+<div class="text-[10px] text-outline">23:59:12 UTC</div>
+</td>
+<td class="px-8 py-4">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded bg-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="movie">movie</span>
+</div>
+<span class="text-sm font-medium text-on-surface">E-OVERPASS-NIGHT.mp4</span>
+</div>
+</td>
+<td class="px-8 py-4 text-center">
+<span class="px-2 py-1 bg-primary-container/20 text-on-primary-container text-xs font-bold rounded-full">94</span>
+</td>
+<td class="px-8 py-4 text-center">
+<span class="px-2 py-1 bg-secondary-container/40 text-on-secondary-container text-xs font-bold rounded-full">2</span>
+</td>
+<td class="px-8 py-4 text-center">
+<span class="px-2 py-1 bg-surface-container text-on-surface-variant text-xs font-bold rounded-full">12</span>
+</td>
+<td class="px-8 py-4 text-right">
+<div class="flex justify-end space-x-2">
+<button class="p-2 hover:bg-primary-container/20 text-primary rounded-lg transition-colors" title="Download CSV">
+<span class="material-symbols-outlined" data-icon="file_download">file_download</span>
+</button>
+<button class="p-2 hover:bg-surface-container-high text-on-surface-variant rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/30 transition-colors group">
+<td class="px-8 py-4">
+<div class="text-sm font-semibold">2023-10-23</div>
+<div class="text-[10px] text-outline">18:44:30 UTC</div>
+</td>
+<td class="px-8 py-4">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded bg-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="movie">movie</span>
+</div>
+<span class="text-sm font-medium text-on-surface">CENTRAL-PARK-EXIT.mp4</span>
+</div>
+</td>
+<td class="px-8 py-4 text-center">
+<span class="px-2 py-1 bg-primary-container/20 text-on-primary-container text-xs font-bold rounded-full">312</span>
+</td>
+<td class="px-8 py-4 text-center">
+<span class="px-2 py-1 bg-secondary-container/40 text-on-secondary-container text-xs font-bold rounded-full">410</span>
+</td>
+<td class="px-8 py-4 text-center">
+<span class="px-2 py-1 bg-surface-container text-on-surface-variant text-xs font-bold rounded-full">0</span>
+</td>
+<td class="px-8 py-4 text-right">
+<div class="flex justify-end space-x-2">
+<button class="p-2 hover:bg-primary-container/20 text-primary rounded-lg transition-colors" title="Download CSV">
+<span class="material-symbols-outlined" data-icon="file_download">file_download</span>
+</button>
+<button class="p-2 hover:bg-surface-container-high text-on-surface-variant rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="px-8 py-6 flex justify-between items-center bg-surface-container-low/20">
+<p class="text-xs text-on-surface-variant">Showing <span class="font-bold">1 - 4</span> of 1,284 logs</p>
+<div class="flex space-x-1">
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant/15 text-outline hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-white font-bold text-xs">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant/15 text-on-surface-variant text-xs hover:bg-white transition-colors">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant/15 text-on-surface-variant text-xs hover:bg-white transition-colors">3</button>
+<span class="px-2 flex items-center text-outline">...</span>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant/15 text-on-surface-variant text-xs hover:bg-white transition-colors">321</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant/15 text-outline hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Footer Details -->
+<div class="mt-12 p-8 bg-surface-container-low rounded-xl border border-outline-variant/10 flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
+<div class="flex items-center space-x-4">
+<div class="relative">
+<div class="w-3 h-3 bg-primary-fixed rounded-full animate-pulse shadow-[0_0_12px_#8debff]"></div>
+<div class="absolute inset-0 w-3 h-3 bg-primary rounded-full blur-[4px] opacity-50"></div>
+</div>
+<div>
+<p class="text-xs font-bold text-on-surface">Log Ingestion Engine: Operational</p>
+<p class="text-[10px] text-on-surface-variant">Syncing with Node Alpha cluster at 1.2ms latency</p>
+</div>
+</div>
+<div class="flex space-x-4">
+<button class="flex items-center space-x-2 text-xs font-bold text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="api">api</span>
+<span>API Access</span>
+</button>
+<button class="flex items-center space-x-2 text-xs font-bold text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="terminal">terminal</span>
+<span>View Raw Console</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+</body></html>

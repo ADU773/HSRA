@@ -1,0 +1,80 @@
+/* ═══════════════════════════════════════════════════════════
+   TrashGuard — Global CSS Design System
+   Light palette: #F8F9FC bg · #4F6EF7 primary · #10B981 success · #EF4444 danger
+═══════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:           #F8F9FC;
+  --surface:      #FFFFFF;
+  --surface-2:    #F1F3F9;
+  --border:       #E4E8F0;
+  --border-2:     #D0D6E5;
+
+  --primary:      #4F6EF7;
+  --primary-dark: #3A55D8;
+  --primary-light:#EDF0FE;
+  --primary-glow: rgba(79,110,247,0.18);
+
+  --success:      #10B981;
+  --success-light:#ECFDF5;
+  --danger:       #EF4444;
+  --danger-light: #FFF1F1;
+  --warning:      #F59E0B;
+  --warning-light:#FFFBEB;
+
+  --text:         #111827;
+  --text-2:       #374151;
+  --text-muted:   #6B7280;
+  --text-light:   #9CA3AF;
+
+  --radius-sm:    6px;
+  --radius:       12px;
+  --radius-lg:    18px;
+
+  --shadow-sm:    0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow:       0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+  --shadow-lg:    0 12px 40px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.06);
+
+  --font:         'Inter', system-ui, sans-serif;
+  --transition:   0.22s cubic-bezier(.4,0,.2,1);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+a { color: var(--primary); text-decoration: none; }
+img { max-width: 100%; display: block; }
+
+/* ── Utilities ──────────────────────────────────────────── */
+.container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+.section    { padding: 64px 0; }
+
+/* ── Animations ─────────────────────────────────────────── */
+@keyframes slideUp   { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn    { from{opacity:0} to{opacity:1} }
+@keyframes spin      { to { transform: rotate(360deg); } }
+@keyframes pulseBorder {
+  0%,100%  { border-color: var(--border-2); }
+  50%      { border-color: rgba(79,110,247,.45); }
+}
+@keyframes float1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(20px,-20px)} }
+@keyframes float2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-20px,15px)} }
+@keyframes barGrow { from{width:0%} to{width:var(--target-w)} }
+@keyframes toastIn  { from{opacity:0;transform:translateX(24px)} to{opacity:1;transform:translateX(0)} }
+
+/* ── Print styles ───────────────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  body { background: #fff; }
+}
+.print-only { display: none; }
