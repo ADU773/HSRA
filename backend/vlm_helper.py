@@ -1,136 +1,149 @@
 """
-vlm_helper.py — nanoVLM semantic scene description wrapper.
+vlm_helper.py — Google Gemini Vision semantic scene description.
 
-Uses the local VLMnano/nanoVLM codebase already present in the project.
-Downloads weights from HuggingFace Hub on first run (cached after that).
-Falls back gracefully to a placeholder if loading fails.
+Uses the Gemini API (gemini-1.5-flash, free tier) for scene analysis.
+
+Set the API key via environment variable:
+    GEMINI_API_KEY=<your_key>
+
+Or place it in a file called `.env` next to this file.
+
+Get a free API key at: https://aistudio.google.com/app/apikey
 """
 
-import sys
 import os
+import io
 import logging
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# ── Path setup ──────────────────────────────────────────────────────────────
+# ── API Key resolution ────────────────────────────────────────────────────────
 _BACKEND_DIR = Path(__file__).resolve().parent
-_PROJECT_ROOT = _BACKEND_DIR.parent
-_NANOVLM_DIR = _PROJECT_ROOT / "VLMnano" / "nanoVLM"
 
-if str(_NANOVLM_DIR) not in sys.path:
-    sys.path.insert(0, str(_NANOVLM_DIR))
+def _get_api_key() -> str | None:
+    """Return Gemini API key from env var or .env file next to this file."""
+    # 1. Check environment variable (set externally or via the .env loader below)
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if key:
+        return key
+
+    # 2. Try reading from a .env file in the backend directory
+    env_file = _BACKEND_DIR / ".env"
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("GEMINI_API_KEY="):
+                key = line.split("=", 1)[1].strip().strip('"').strip("'")
+                if key:
+                    os.environ["GEMINI_API_KEY"] = key  # cache in env
+                    return key
+    return None
 
 
-# ── Lazy model globals ───────────────────────────────────────────────────────
-_vlm_model = None
-_vlm_tokenizer = None
-_vlm_image_processor = None
-_vlm_device = None
-_vlm_available = False
-_vlm_load_attempted = False
+# ── Lazy client globals ───────────────────────────────────────────────────────
+_gemini_client = None
+_gemini_available = False
+_gemini_load_attempted = False
+_GEMINI_MODEL = "gemini-1.5-flash"   # free-tier quota model
 
 
-def _load_vlm():
-    """Load nanoVLM model (once). Sets _vlm_available flag."""
-    global _vlm_model, _vlm_tokenizer, _vlm_image_processor
-    global _vlm_device, _vlm_available, _vlm_load_attempted
+def _load_gemini():
+    """Initialise the Gemini client (once). Sets _gemini_available flag."""
+    global _gemini_client, _gemini_available, _gemini_load_attempted
 
-    if _vlm_load_attempted:
-        return _vlm_available
+    if _gemini_load_attempted:
+        return _gemini_available
 
-    _vlm_load_attempted = True
+    _gemini_load_attempted = True
+
+    api_key = _get_api_key()
+    if not api_key:
+        logger.warning(
+            "[VLM] GEMINI_API_KEY not set. "
+            "Add it to backend/.env or set the environment variable. "
+            "Get a free key at https://aistudio.google.com/app/apikey"
+        )
+        _gemini_available = False
+        return False
 
     try:
-        import torch
-        from models.vision_language_model import VisionLanguageModel
-        from data.processors import get_tokenizer, get_image_processor
-
-        if torch.cuda.is_available():
-            _vlm_device = torch.device("cuda")
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            _vlm_device = torch.device("mps")
-        else:
-            _vlm_device = torch.device("cpu")
-
-        logger.info(f"[VLM] Loading nanoVLM on device: {_vlm_device}")
-
-        HF_MODEL = "lusxvr/nanoVLM-230M-8k"
-        _vlm_model = VisionLanguageModel.from_pretrained(HF_MODEL).to(_vlm_device)
-        _vlm_model.eval()
-
-        cfg = _vlm_model.cfg
-        _vlm_tokenizer = get_tokenizer(
-            cfg.lm_tokenizer, cfg.vlm_extra_tokens, cfg.lm_chat_template
-        )
-
-        resize_to_max = getattr(cfg, "resize_to_max_side_len", False)
-        _vlm_image_processor = get_image_processor(
-            cfg.max_img_size, cfg.vit_img_size, resize_to_max
-        )
-
-        _vlm_available = True
-        logger.info("[VLM] nanoVLM loaded successfully.")
-
+        import google.generativeai as genai   # noqa
+        genai.configure(api_key=api_key)
+        _gemini_client = genai.GenerativeModel(_GEMINI_MODEL)
+        # Quick connectivity test (list models doesn't cost quota)
+        _gemini_available = True
+        logger.info(f"[VLM] Gemini Vision ready (model: {_GEMINI_MODEL})")
     except Exception as e:
-        logger.warning(f"[VLM] Failed to load nanoVLM: {e}. Descriptions will be skipped.")
-        _vlm_available = False
+        logger.warning(f"[VLM] Failed to initialise Gemini: {e}")
+        _gemini_available = False
 
-    return _vlm_available
+    return _gemini_available
 
 
-def describe_frame(pil_image, prompt: str = "Describe what is happening in this scene. Focus on any person throwing or littering trash.") -> str:
+# ── Public API ────────────────────────────────────────────────────────────────
+
+DEFAULT_PROMPT = (
+    "You are an urban security AI assistant. Analyse this video frame and provide "
+    "a concise, factual description of the scene. Focus on: "
+    "1) Any person who appears to be throwing, dropping, or littering trash. "
+    "2) Any visible waste, garbage, or foreign objects on the ground or in the air. "
+    "3) General scene context (location type, number of people, vehicles). "
+    "Keep the description under 3 sentences and be specific."
+)
+
+
+def describe_frame(
+    pil_image,
+    prompt: str = DEFAULT_PROMPT,
+) -> str:
     """
-    Generate a natural-language description for a PIL image frame.
+    Generate a natural-language description for a PIL image frame using Gemini Vision.
 
     Args:
         pil_image: PIL.Image.Image (RGB)
-        prompt: text prompt for the VLM
+        prompt: Instruction for the VLM
 
     Returns:
-        str description, or a fallback string if VLM is unavailable.
+        str description, or informative fallback if Gemini is unavailable.
     """
-    if not _load_vlm():
-        return "[VLM unavailable — install dependencies or check HuggingFace connectivity]"
+    if not _load_gemini():
+        return (
+            "[VLM unavailable] Set GEMINI_API_KEY in backend/.env "
+            "to enable scene descriptions. Get a free key at: "
+            "https://aistudio.google.com/app/apikey"
+        )
 
     try:
-        import torch
-        from data.processors import get_image_string
+        import google.generativeai as genai
+        from PIL import Image as PILImage
 
         img = pil_image.convert("RGB")
-        processed_image, splitted_image_ratio = _vlm_image_processor(img)
 
-        # If no global_image_token, strip the global patch
-        if (
-            not hasattr(_vlm_tokenizer, "global_image_token")
-            and splitted_image_ratio[0] * splitted_image_ratio[1] == len(processed_image) - 1
-        ):
-            processed_image = processed_image[1:]
+        # Convert PIL image to bytes for the API
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+        buf.seek(0)
 
-        image_string = get_image_string(
-            _vlm_tokenizer, [splitted_image_ratio], _vlm_model.cfg.mp_image_token_length
+        image_part = {
+            "mime_type": "image/jpeg",
+            "data": buf.read(),
+        }
+
+        response = _gemini_client.generate_content(
+            [prompt, image_part],
+            generation_config=genai.types.GenerationConfig(
+                max_output_tokens=256,
+                temperature=0.3,
+            ),
         )
 
-        messages = [{"role": "user", "content": image_string + prompt}]
-        encoded = _vlm_tokenizer.apply_chat_template(
-            messages, tokenize=True, add_generation_prompt=True, return_tensors="pt"
-        )
-        
-        if isinstance(encoded, dict) and "input_ids" in encoded:
-            tokens = encoded["input_ids"].to(_vlm_device)
-        else:
-            tokens = encoded.to(_vlm_device)
-            
-        if len(tokens.shape) == 1:
-            tokens = tokens.unsqueeze(0)
-            
-        img_t = processed_image.to(_vlm_device)
+        text = response.text.strip() if response.text else ""
+        if not text:
+            return "[VLM returned empty response]"
 
-        with torch.inference_mode():
-            gen = _vlm_model.generate(tokens, img_t, max_new_tokens=200)
-
-        text = _vlm_tokenizer.batch_decode(gen, skip_special_tokens=True)[0]
-        return text.strip()
+        logger.debug(f"[VLM] Gemini description: {text[:80]}…")
+        return text
 
     except Exception as e:
         logger.error(f"[VLM] describe_frame failed: {e}")
@@ -138,5 +151,5 @@ def describe_frame(pil_image, prompt: str = "Describe what is happening in this 
 
 
 def is_available() -> bool:
-    """Return True if VLM can be used (triggers lazy load)."""
-    return _load_vlm()
+    """Return True if Gemini VLM is configured and reachable."""
+    return _load_gemini()

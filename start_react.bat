@@ -7,7 +7,7 @@ echo.
 
 REM ── 1. Install Python deps ──────────────────────────────────
 echo [1/3] Checking Python dependencies...
-pip install flask flask-cors ultralytics opencv-python torch torchvision transformers safetensors pillow scipy pandas huggingface_hub werkzeug 2>nul
+pip install flask flask-cors ultralytics opencv-python torch torchvision transformers safetensors pillow scipy pandas huggingface_hub werkzeug google-generativeai 2>nul
 echo       Done.
 echo.
 
@@ -38,9 +38,7 @@ timeout /t 2 /nobreak >nul
 REM Start React dev server in a new window
 start "TrashGuard — React App (port 3000)" cmd /k "cd /d %~dp0frontend-react && npm run dev"
 
-REM Open browser after a short delay
-timeout /t 4 /nobreak >nul
-start http://localhost:3000
+REM Servers are running — open http://localhost:3000 in your browser
 
 echo Both servers started. Browser opening at http://localhost:3000
 pause
