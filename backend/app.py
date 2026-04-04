@@ -256,13 +256,47 @@ def get_frame(job_id: str, frame_idx: int):
 
 @app.route("/api/vlmcheck")
 def vlm_check():
-    """Quick health-check: is VLM available?"""
+    """Health-check: returns availability of Gemini VLM and local CLIP model."""
     try:
-        from vlm_helper import is_available
-        avail = is_available()
-        return jsonify({"vlm_available": avail})
+        from vlm_helper import is_available, is_clip_available, CLIP_MODEL_ID
+        gemini_ok = is_available()
+        clip_ok = is_clip_available()
+        return jsonify({
+            "vlm_available": gemini_ok,
+            "clip_available": clip_ok,
+            "clip_model": CLIP_MODEL_ID,
+            "clip_device": "cuda" if __import__('torch').cuda.is_available() else "cpu",
+        })
     except Exception as e:
-        return jsonify({"vlm_available": False, "error": str(e)})
+        return jsonify({"vlm_available": False, "clip_available": False, "error": str(e)})
+
+
+@app.route("/api/clip-verify", methods=["POST"])
+def clip_verify():
+    """
+    On-demand CLIP zero-shot verification.
+    Accepts JSON: { "image_b64": "<base64 JPEG>", "labels": ["..."] (optional) }
+    Returns CLIP scores for the provided labels.
+    """
+    import base64
+    try:
+        data = request.get_json(force=True)
+        if not data or "image_b64" not in data:
+            return jsonify({"error": "Missing image_b64 field"}), 400
+
+        raw = base64.b64decode(data["image_b64"])
+        from PIL import Image
+        pil_img = Image.open(io.BytesIO(raw)).convert("RGB")
+
+        labels = data.get("labels", None)
+
+        from vlm_helper import clip_verify_frame
+        result = clip_verify_frame(pil_img, labels)
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"[clip-verify] {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/jobs")

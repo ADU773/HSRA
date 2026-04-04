@@ -52,7 +52,7 @@ export default function Dashboard({
             {/* Quick Action / VLM Toggle */}
             <div className="flex justify-end mb-4">
                 <label className="flex items-center gap-3 cursor-pointer p-3 bg-surface-container-lowest border border-outline-variant/10 rounded-xl shadow-sm hover:bg-surface-container-low transition-colors">
-                    <span className="text-sm font-bold text-on-surface">Enable VLMnano Descriptions</span>
+                    <span className="text-sm font-bold text-on-surface">Enable VLM Descriptions</span>
                     <div className="relative">
                         <input type="checkbox" className="sr-only" checked={useVlm} onChange={e => setUseVlm(e.target.checked)} />
                         <div className={`block w-10 h-6 rounded-full transition-colors ${useVlm ? 'bg-primary' : 'bg-outline-variant'}`}></div>
@@ -167,6 +167,10 @@ export default function Dashboard({
                                 <span className="text-sm font-headline font-bold text-primary">best.pt ensemble</span>
                             </div>
                             <div className="flex flex-col">
+                                <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">VLM Engine</span>
+                                <span className="text-sm font-headline font-bold text-indigo-400">CLIP + Gemini</span>
+                            </div>
+                            <div className="flex flex-col">
                                 <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">System Status</span>
                                 <span className="text-sm font-headline font-bold">{view === 'upload' ? 'Awaiting Input' : 'Processing'}</span>
                             </div>
@@ -197,7 +201,7 @@ export default function Dashboard({
             </div>
 
             {/* Model Status Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-4">
                 {/* best.pt */}
                 <div className="bg-surface-container-lowest p-6 rounded-[1.5rem] shadow-sm border-b-4 border-primary/20">
                     <div className="flex justify-between items-start mb-6">
@@ -220,7 +224,19 @@ export default function Dashboard({
                     <h3 className="font-headline font-extrabold text-on-surface mb-1">yolo11n.pt</h3>
                     <p className="text-xs text-on-surface-variant mb-4">Baseline Object Engine</p>
                 </div>
-                {/* VLMnano */}
+                {/* CLIP */}
+                <div className="bg-surface-container-lowest p-6 rounded-[1.5rem] shadow-sm border-b-4 border-indigo-500/30">
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400">
+                            <span className="material-symbols-outlined">image_search</span>
+                        </div>
+                        <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-full border border-indigo-500/20">LOCAL · GPU</span>
+                    </div>
+                    <h3 className="font-headline font-extrabold text-on-surface mb-1">CLIP</h3>
+                    <p className="text-xs text-on-surface-variant mb-1">Zero-Shot Verifier</p>
+                    <p className="text-[10px] text-indigo-400/70 font-mono">clip-vit-base-patch32</p>
+                </div>
+                {/* Gemini VLM */}
                 <div className={`bg-surface-container-lowest p-6 rounded-[1.5rem] shadow-sm border-b-4 ${useVlm ? 'border-error/20' : 'border-outline/20'}`}>
                     <div className="flex justify-between items-start mb-6">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${useVlm ? 'bg-error-container/20 text-error' : 'bg-surface-container text-outline'}`}>
@@ -230,8 +246,9 @@ export default function Dashboard({
                             {useVlm ? 'ACTIVE' : 'DISABLED'}
                         </span>
                     </div>
-                    <h3 className={`font-headline font-extrabold mb-1 ${useVlm ? 'text-on-surface' : 'text-outline'}`}>VLMnano</h3>
-                    <p className="text-xs text-on-surface-variant mb-4">Visual Language Model</p>
+                    <h3 className={`font-headline font-extrabold mb-1 ${useVlm ? 'text-on-surface' : 'text-outline'}`}>Gemini Vision</h3>
+                    <p className="text-xs text-on-surface-variant mb-1">Rich Scene Descriptions</p>
+                    <p className="text-[10px] text-on-surface-variant/60 font-mono">gemini-1.5-flash</p>
                 </div>
             </div>
 

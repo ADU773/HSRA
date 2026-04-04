@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { fetchFrameList, frameUrl } from '../api';
+import CLIPVerification from '../components/CLIPVerification';
 
 // ── Frame Gallery sub-component ───────────────────────────────────────────────
 function FrameGallery({ jobId, throwingEvents, fps }) {
@@ -321,12 +322,18 @@ export default function AnalysisReport({ data, jobId, onReset }) {
                 </div>
 
                 {/* Stat chips */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {[
                         { label: 'Persons Detected', value: uniquePersons, icon: 'person',     color: 'text-primary' },
                         { label: 'Trash Items',       value: uniqueTrash,   icon: 'delete',     color: 'text-error' },
                         { label: 'Throwing Events',   value: totalEvents,   icon: 'warning',    color: 'text-tertiary' },
                         { label: 'VLM Descriptions',  value: vlmDescs.length,icon: 'visibility',color: 'text-secondary' },
+                        {
+                            label: 'CLIP Verified',
+                            value: throwingEvents.filter(e => e.clip_is_littering).length,
+                            icon: 'verified',
+                            color: throwingEvents.some(e => e.clip_is_littering) ? 'text-error' : 'text-green-400',
+                        },
                     ].map(({ label, value, icon, color }) => (
                         <div key={label} className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-outline-variant/5 flex flex-col gap-2">
                             <span className={`material-symbols-outlined ${color}`}>{icon}</span>
@@ -345,20 +352,39 @@ export default function AnalysisReport({ data, jobId, onReset }) {
                     <h3 className="text-base font-bold font-headline mb-4 flex items-center gap-2">
                         <span className="material-symbols-outlined text-primary">summarize</span>
                         Semantic Scene Summary
+                        <span className="ml-auto text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full">
+                            CLIP + {vlmDescs[0]?.description?.startsWith('[CLIP') ? 'CLIP fallback' : 'Gemini'}
+                        </span>
                     </h3>
                     <p className="text-sm text-on-surface-variant leading-relaxed bg-surface-container/40 p-4 rounded-xl font-mono">
                         {mainSummary}
                     </p>
                     {vlmDescs.length > 1 && (
                         <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
-                            {vlmDescs.slice(1).map((vd, i) => (
-                                <div key={i} className="flex gap-3 p-3 bg-surface-container-low rounded-xl">
-                                    <span className="text-[10px] font-bold text-primary bg-primary-container/20 px-2 py-1 rounded-md shrink-0">
-                                        {vd.time_formatted || `${vd.timestamp?.toFixed(1)}s`}
-                                    </span>
-                                    <p className="text-xs text-on-surface-variant font-mono leading-snug">{vd.description}</p>
-                                </div>
-                            ))}
+                            {vlmDescs.slice(1).map((vd, i) => {
+                                // Find nearest throwing event with CLIP data
+                                const nearEvt = throwingEvents.find(
+                                    e => e.clip_label && Math.abs(e.timestamp - vd.timestamp) < 3
+                                );
+                                return (
+                                    <div key={i} className="flex flex-col gap-2 p-3 bg-surface-container-low rounded-xl">
+                                        <div className="flex gap-3 items-start">
+                                            <span className="text-[10px] font-bold text-primary bg-primary-container/20 px-2 py-1 rounded-md shrink-0">
+                                                {vd.time_formatted || `${vd.timestamp?.toFixed(1)}s`}
+                                            </span>
+                                            <p className="text-xs text-on-surface-variant font-mono leading-snug">{vd.description}</p>
+                                        </div>
+                                        {nearEvt && (
+                                            <CLIPVerification
+                                                clipLabel={nearEvt.clip_label}
+                                                clipConfidence={nearEvt.clip_confidence}
+                                                clipIsLittering={nearEvt.clip_is_littering}
+                                                clipAllScores={nearEvt.clip_all_scores}
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -390,17 +416,46 @@ export default function AnalysisReport({ data, jobId, onReset }) {
                             <h3 className="text-base font-bold font-headline text-error">
                                 Littering / Throwing Events ({throwingEvents.length})
                             </h3>
+                            {throwingEvents.some(e => e.clip_is_littering) && (
+                                <span className="ml-auto text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1 rounded-full">
+                                    {throwingEvents.filter(e => e.clip_is_littering).length} CLIP-confirmed
+                                </span>
+                            )}
                         </div>
                         <div className="divide-y divide-surface-container">
                             {throwingEvents.map((evt, i) => (
-                                <div key={i} className="px-8 py-4 flex items-start gap-5 hover:bg-surface-container-low transition-colors">
-                                    <span className="bg-error-container/20 text-error text-xs font-bold px-2 py-1 rounded-md shrink-0">#{i + 1}</span>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold text-on-surface">{evt.description}</p>
-                                        <p className="text-xs text-on-surface-variant mt-1 font-mono">
-                                            {evt.time_formatted || `${evt.timestamp?.toFixed(2)}s`} · Frame {evt.frame_idx}
-                                        </p>
+                                <div key={i} className="px-8 py-5 flex flex-col gap-3 hover:bg-surface-container-low transition-colors">
+                                    <div className="flex items-start gap-5">
+                                        <span className="bg-error-container/20 text-error text-xs font-bold px-2 py-1 rounded-md shrink-0">#{i + 1}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-on-surface">{evt.description}</p>
+                                            <p className="text-xs text-on-surface-variant mt-1 font-mono">
+                                                {evt.time_formatted || `${evt.timestamp?.toFixed(2)}s`} · Frame {evt.frame_idx}
+                                            </p>
+                                        </div>
+                                        {/* Compact CLIP badge */}
+                                        {evt.clip_label && (
+                                            <CLIPVerification
+                                                clipLabel={evt.clip_label}
+                                                clipConfidence={evt.clip_confidence}
+                                                clipIsLittering={evt.clip_is_littering}
+                                                clipAllScores={evt.clip_all_scores}
+                                                compact={true}
+                                            />
+                                        )}
                                     </div>
+                                    {/* Full CLIP breakdown – show when littering confirmed or high confidence */}
+                                    {evt.clip_label && Object.keys(evt.clip_all_scores || {}).length > 0 && (
+                                        <div className="ml-10">
+                                            <CLIPVerification
+                                                clipLabel={evt.clip_label}
+                                                clipConfidence={evt.clip_confidence}
+                                                clipIsLittering={evt.clip_is_littering}
+                                                clipAllScores={evt.clip_all_scores}
+                                                compact={false}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

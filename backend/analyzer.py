@@ -60,6 +60,10 @@ class ThrowingEvent:
     person_track_id: int
     trash_track_id: int
     description: str           # VLM or computed label
+    clip_label: str = ""      # CLIP zero-shot best label
+    clip_confidence: float = 0.0   # CLIP confidence [0,1]
+    clip_is_littering: bool = False
+    clip_all_scores: dict = field(default_factory=dict)  # all label→prob
 
 
 @dataclass
@@ -121,6 +125,10 @@ class AnalysisResult:
                     "person_track_id": e.person_track_id,
                     "trash_track_id": e.trash_track_id,
                     "description": e.description,
+                    "clip_label": e.clip_label,
+                    "clip_confidence": round(e.clip_confidence, 4),
+                    "clip_is_littering": e.clip_is_littering,
+                    "clip_all_scores": e.clip_all_scores,
                 }
                 for e in self.throwing_events
             ],
@@ -387,6 +395,27 @@ def analyze_video(
                 ))
             except Exception as e:
                 logger.warning(f"[Analyzer] VLM failed at frame {frame_idx}: {e}")
+
+        # ── 4b. CLIP verification on throwing events this frame ────────────
+        if events_this_frame:
+            try:
+                from vlm_helper import clip_verify_frame
+                pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                clip_result = clip_verify_frame(pil_img)
+                # Attach CLIP result to all events recorded for this frame
+                for evt in result.throwing_events:
+                    if evt.frame_idx == frame_idx and not evt.clip_label:
+                        evt.clip_label = clip_result.get("label", "")
+                        evt.clip_confidence = clip_result.get("confidence", 0.0)
+                        evt.clip_is_littering = clip_result.get("is_littering", False)
+                        evt.clip_all_scores = clip_result.get("all_scores", {})
+                        logger.info(
+                            f"[CLIP] Event at {timestamp:.2f}s → "
+                            f"'{evt.clip_label[:50]}' {evt.clip_confidence:.1%} "
+                            f"littering={evt.clip_is_littering}"
+                        )
+            except Exception as e:
+                logger.warning(f"[Analyzer] CLIP verify failed at frame {frame_idx}: {e}")
 
         # ── 5. Save annotated frame for gallery ────────────────────────────
         if frame_idx % annotated_frame_interval == 0 or events_this_frame:
