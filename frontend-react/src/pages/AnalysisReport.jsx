@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchFrameList, frameUrl } from '../api';
 import CLIPVerification from '../components/CLIPVerification';
+import { usePdfExport } from '../hooks/usePdfExport';
 
 // ── Frame Gallery sub-component ───────────────────────────────────────────────
 function FrameGallery({ jobId, throwingEvents, fps }) {
@@ -229,9 +230,13 @@ function FrameGallery({ jobId, throwingEvents, fps }) {
 export default function AnalysisReport({ data, jobId, onReset }) {
     if (!data) return null;
 
+    const reportRef = useRef(null);
+    const { exporting, exportError, downloadServerPdf, downloadClientPdf } = usePdfExport();
+
     const trackTimeline  = data.track_timeline  || [];
     const throwingEvents = data.throwing_events || [];
     const vlmDescs       = data.vlm_descriptions || [];
+    const vlmTimeline    = data.vlm_timeline     || vlmDescs;
     const classCounts    = data.class_counts    || {};
     const totalFrames    = data.total_frames    ?? '—';
     const durationSec    = data.duration_sec    ?? 0;
@@ -240,10 +245,7 @@ export default function AnalysisReport({ data, jobId, onReset }) {
     const uniquePersons  = data.unique_persons  ?? 0;
     const uniqueTrash    = data.unique_trash    ?? 0;
     const totalEvents    = data.total_events    ?? 0;
-
-    const mainSummary = vlmDescs.length > 0
-        ? vlmDescs[0].description
-        : 'No VLM semantic descriptions were generated for this session.';
+    const clipConfirmed  = data.clip_confirmed_count ?? throwingEvents.filter(e => e.clip_is_littering).length;
 
     function downloadCsv(e) {
         e.preventDefault();
@@ -303,7 +305,7 @@ export default function AnalysisReport({ data, jobId, onReset }) {
             </section>
 
             {/* Main scrollable content */}
-            <section className="flex-1 overflow-y-auto pr-2 space-y-6 pb-8 min-h-0">
+            <section ref={reportRef} className="flex-1 overflow-y-auto pr-2 space-y-6 pb-8 min-h-0">
 
                 {/* Report header */}
                 <div className="flex justify-between items-end flex-wrap gap-4">
@@ -312,27 +314,59 @@ export default function AnalysisReport({ data, jobId, onReset }) {
                         <h2 className="text-3xl font-extrabold font-headline mt-2 text-on-surface">Incident Semantic Analysis</h2>
                         <p className="text-on-surface-variant mt-1 text-sm">Ref: {jobId} · {data.generated_at || 'Just now'}</p>
                     </div>
-                    <button
-                        onClick={downloadCsv}
-                        className="flex items-center px-6 py-2.5 rounded-xl primary-gradient text-white text-sm font-semibold shadow-lg hover:scale-105 transition-transform"
-                    >
-                        <span className="material-symbols-outlined mr-2">file_download</span>
-                        Export CSV
-                    </button>
+
+                    {/* Export buttons */}
+                    <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                            {/* CSV */}
+                            <button
+                                onClick={downloadCsv}
+                                className="flex items-center px-4 py-2 rounded-xl bg-surface-container-low border border-outline-variant/20 text-on-surface text-sm font-semibold hover:bg-surface-container-high transition-colors"
+                            >
+                                <span className="material-symbols-outlined mr-1.5 text-sm">table_chart</span>
+                                CSV
+                            </button>
+
+                            {/* Server-side structured PDF */}
+                            <button
+                                onClick={() => downloadServerPdf(jobId)}
+                                disabled={exporting}
+                                className="flex items-center px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-sm font-semibold hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
+                            >
+                                <span className="material-symbols-outlined mr-1.5 text-sm">picture_as_pdf</span>
+                                {exporting ? 'Generating…' : 'PDF Report'}
+                            </button>
+
+                            {/* Client-side visual PDF */}
+                            <button
+                                onClick={() => downloadClientPdf(reportRef, jobId)}
+                                disabled={exporting}
+                                className="flex items-center px-5 py-2.5 rounded-xl primary-gradient text-white text-sm font-semibold shadow-lg hover:scale-105 transition-transform disabled:opacity-50"
+                            >
+                                <span className="material-symbols-outlined mr-2">file_download</span>
+                                {exporting ? 'Capturing…' : 'Visual PDF'}
+                            </button>
+                        </div>
+
+                        {/* Export error */}
+                        {exportError && (
+                            <p className="text-xs text-red-400 font-mono">⚠ {exportError}</p>
+                        )}
+                    </div>
                 </div>
 
                 {/* Stat chips */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {[
-                        { label: 'Persons Detected', value: uniquePersons, icon: 'person',     color: 'text-primary' },
-                        { label: 'Trash Items',       value: uniqueTrash,   icon: 'delete',     color: 'text-error' },
-                        { label: 'Throwing Events',   value: totalEvents,   icon: 'warning',    color: 'text-tertiary' },
-                        { label: 'VLM Descriptions',  value: vlmDescs.length,icon: 'visibility',color: 'text-secondary' },
+                        { label: 'Persons Detected', value: uniquePersons,      icon: 'person',     color: 'text-primary' },
+                        { label: 'Trash Items',       value: uniqueTrash,        icon: 'delete',     color: 'text-error' },
+                        { label: 'Throwing Events',   value: totalEvents,        icon: 'warning',    color: 'text-tertiary' },
+                        { label: 'VLM Descriptions',  value: vlmDescs.length,   icon: 'visibility', color: 'text-secondary' },
                         {
                             label: 'CLIP Verified',
-                            value: throwingEvents.filter(e => e.clip_is_littering).length,
+                            value: clipConfirmed,
                             icon: 'verified',
-                            color: throwingEvents.some(e => e.clip_is_littering) ? 'text-error' : 'text-green-400',
+                            color: clipConfirmed > 0 ? 'text-error' : 'text-green-400',
                         },
                     ].map(({ label, value, icon, color }) => (
                         <div key={label} className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-outline-variant/5 flex flex-col gap-2">
@@ -346,48 +380,92 @@ export default function AnalysisReport({ data, jobId, onReset }) {
                 {/* ─── FRAME GALLERY ─── */}
                 <FrameGallery jobId={jobId} throwingEvents={throwingEvents} fps={fps} />
 
-                {/* VLM Semantic Summary */}
-                <div className="bg-surface-container-lowest p-8 rounded-2xl shadow-sm border border-outline-variant/5 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-40 h-40 primary-gradient opacity-5 rounded-bl-[100px]"></div>
-                    <h3 className="text-base font-bold font-headline mb-4 flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">summarize</span>
-                        Semantic Scene Summary
-                        <span className="ml-auto text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full">
-                            CLIP + {vlmDescs[0]?.description?.startsWith('[CLIP') ? 'CLIP fallback' : 'Gemini'}
-                        </span>
-                    </h3>
-                    <p className="text-sm text-on-surface-variant leading-relaxed bg-surface-container/40 p-4 rounded-xl font-mono">
-                        {mainSummary}
-                    </p>
-                    {vlmDescs.length > 1 && (
-                        <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
-                            {vlmDescs.slice(1).map((vd, i) => {
-                                // Find nearest throwing event with CLIP data
-                                const nearEvt = throwingEvents.find(
-                                    e => e.clip_label && Math.abs(e.timestamp - vd.timestamp) < 3
-                                );
+                {/* ── VLM Timeline ─────────────────────────────────────── */}
+                {vlmTimeline.length > 0 && (
+                    <div className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant/5 overflow-hidden">
+                        <div className="px-8 py-5 bg-surface-bright border-b border-surface-container flex items-center gap-3">
+                            <span className="material-symbols-outlined text-primary">timeline</span>
+                            <h3 className="text-base font-bold font-headline">VLM Scene Description Timeline</h3>
+                            <span className="text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full">
+                                CLIP + {vlmTimeline[0]?.description?.startsWith('[CLIP') ? 'CLIP fallback' : 'Gemini'}
+                            </span>
+                            <span className="ml-auto text-xs text-on-surface-variant font-mono">{vlmTimeline.length} snapshots</span>
+                        </div>
+
+                        <div className="divide-y divide-surface-container">
+                            {vlmTimeline.map((vd, i) => {
+                                const nearEvt = vd.nearest_event ||
+                                    throwingEvents.find(e => e.clip_label && Math.abs(e.timestamp - vd.timestamp) < 3);
+                                const activeObjs = vd.active_objects || [];
+
+                                // Group active objects by class
+                                const objGroups = {};
+                                activeObjs.forEach(o => {
+                                    if (!objGroups[o.class_name]) objGroups[o.class_name] = [];
+                                    objGroups[o.class_name].push(o.track_id);
+                                });
+
                                 return (
-                                    <div key={i} className="flex flex-col gap-2 p-3 bg-surface-container-low rounded-xl">
-                                        <div className="flex gap-3 items-start">
-                                            <span className="text-[10px] font-bold text-primary bg-primary-container/20 px-2 py-1 rounded-md shrink-0">
-                                                {vd.time_formatted || `${vd.timestamp?.toFixed(1)}s`}
+                                    <div key={i} className="px-8 py-5 flex flex-col gap-4 hover:bg-surface-container-low/40 transition-colors">
+
+                                        {/* Header row: timestamp + object chips */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="font-mono text-xs font-bold text-primary bg-primary-container/20 border border-primary/20 px-3 py-1 rounded-full">
+                                                ⏱ {vd.time_formatted || `${vd.timestamp?.toFixed(2)}s`}
                                             </span>
-                                            <p className="text-xs text-on-surface-variant font-mono leading-snug">{vd.description}</p>
+                                            <span className="text-[10px] text-on-surface-variant font-mono">Frame #{vd.frame_idx}</span>
+
+                                            {/* Active object chips */}
+                                            {Object.entries(objGroups).map(([cls, ids]) => {
+                                                const isTrash = !['person','car','truck','bus','bicycle','motorcycle'].includes(cls);
+                                                return (
+                                                    <span key={cls}
+                                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                                            cls === 'person'
+                                                                ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                                                : isTrash
+                                                                ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                                                : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                                        }`}
+                                                    >
+                                                        {ids.length}× {cls} {ids.length <= 3 ? ids.map(id => `#${id}`).join(' ') : ''}
+                                                    </span>
+                                                );
+                                            })}
+
+                                            {/* Link to nearest event */}
+                                            {nearEvt && (
+                                                <span className="ml-auto text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded-full">
+                                                    ⚠ Event @ {nearEvt.time_formatted || `${nearEvt.timestamp?.toFixed(2)}s`}
+                                                </span>
+                                            )}
                                         </div>
-                                        {nearEvt && (
-                                            <CLIPVerification
-                                                clipLabel={nearEvt.clip_label}
-                                                clipConfidence={nearEvt.clip_confidence}
-                                                clipIsLittering={nearEvt.clip_is_littering}
-                                                clipAllScores={nearEvt.clip_all_scores}
-                                            />
+
+                                        {/* VLM description text */}
+                                        <div className="flex gap-3 items-start">
+                                            <div className="w-1 self-stretch rounded-full bg-primary/30 shrink-0" />
+                                            <p className="text-sm text-on-surface-variant leading-relaxed font-mono">
+                                                {vd.description}
+                                            </p>
+                                        </div>
+
+                                        {/* CLIP panel if a nearby event exists */}
+                                        {nearEvt?.clip_label && (
+                                            <div className="ml-4">
+                                                <CLIPVerification
+                                                    clipLabel={nearEvt.clip_label}
+                                                    clipConfidence={nearEvt.clip_confidence}
+                                                    clipIsLittering={nearEvt.clip_is_littering}
+                                                    clipAllScores={nearEvt.clip_all_scores}
+                                                />
+                                            </div>
                                         )}
                                     </div>
                                 );
                             })}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Class Breakdown */}
                 {Object.keys(classCounts).length > 0 && (
@@ -468,12 +546,13 @@ export default function AnalysisReport({ data, jobId, onReset }) {
                         <div className="px-8 py-5 bg-surface-bright border-b border-surface-container flex items-center gap-2">
                             <span className="material-symbols-outlined text-primary">analytics</span>
                             <h3 className="text-base font-bold font-headline">Tracked Objects Registry</h3>
+                            <span className="ml-auto text-xs text-on-surface-variant">{trackTimeline.length} unique tracks</span>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead>
                                     <tr className="bg-surface-container-low/50">
-                                        {['Track ID', 'Class', 'Model', 'First Seen', 'Last Seen', 'Detections'].map(h => (
+                                        {['Track ID', 'Class', 'Model', 'First Seen', 'Last Seen', 'Duration on Screen', 'Detections'].map(h => (
                                             <th key={h} className="px-6 py-3 text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">{h}</th>
                                         ))}
                                     </tr>
@@ -483,11 +562,22 @@ export default function AnalysisReport({ data, jobId, onReset }) {
                                         <tr key={i} className="hover:bg-surface-container-low/50 transition-colors">
                                             <td className="px-6 py-4 font-mono text-sm font-semibold">#{track.track_id}</td>
                                             <td className="px-6 py-4">
-                                                <span className="bg-surface-container-high text-on-surface px-2 py-1 rounded-md text-xs font-bold uppercase">{track.class_name}</span>
+                                                <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase ${
+                                                    track.class_name === 'person'
+                                                        ? 'bg-blue-500/10 text-blue-400'
+                                                        : track.source_model === 'custom'
+                                                        ? 'bg-red-500/10 text-red-400'
+                                                        : 'bg-surface-container-high text-on-surface'
+                                                }`}>{track.class_name}</span>
                                             </td>
                                             <td className="px-6 py-4 text-xs text-on-surface-variant">{track.source_model}</td>
                                             <td className="px-6 py-4 text-xs font-mono text-on-surface-variant">{track.first_seen_fmt || `${track.first_seen?.toFixed(2)}s`}</td>
                                             <td className="px-6 py-4 text-xs font-mono text-on-surface-variant">{track.last_seen_fmt  || `${track.last_seen?.toFixed(2)}s`}</td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-xs font-bold text-secondary font-mono">
+                                                    {track.duration_str || `${track.duration_sec?.toFixed(2)}s`}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-4 text-sm font-bold text-primary">{track.detections}</td>
                                         </tr>
                                     ))}

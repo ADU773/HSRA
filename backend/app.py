@@ -31,6 +31,7 @@ sys.path.insert(0, str(_BACKEND_DIR))
 
 from analyzer import analyze_video, AnalysisResult
 from report import generate_csv, generate_report_json
+from pdf_report import generate_pdf
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -221,6 +222,34 @@ def download_csv(job_id: str):
         mimetype="text/csv",
         headers={"Content-Disposition": f"attachment; filename=trash_report_{job_id[:8]}.csv"},
     )
+
+@app.route("/api/download/pdf/<job_id>")
+def download_pdf(job_id: str):
+    """Generate and stream a structured PDF report."""
+    with _JOBS_LOCK:
+        job = _JOBS.get(job_id)
+    if not job or job["status"] != "done":
+        return jsonify({"error": "Job not ready or not found"}), 404
+
+    result: AnalysisResult = job.get("result")
+    if result is None:
+        return jsonify({"error": "No result data"}), 404
+
+    try:
+        report_data = generate_report_json(result)
+        pdf_bytes = generate_pdf(report_data)
+        return Response(
+            pdf_bytes,
+            mimetype="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="trashguard_report_{job_id[:8]}.pdf"',
+                "Content-Length": str(len(pdf_bytes)),
+            },
+        )
+    except Exception as e:
+        logger.error(f"[pdf] Generation failed: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
 
 
 @app.route("/api/frames/<job_id>")
