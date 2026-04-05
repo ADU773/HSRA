@@ -236,8 +236,11 @@ def download_pdf(job_id: str):
     if report_data is None:
         return jsonify({"error": "No result data"}), 404
 
+    # Pass annotated frames so the PDF can embed actual incident images
+    annotated_frames = job.get("annotated_frames", {})
+
     try:
-        pdf_bytes = generate_pdf(report_data)
+        pdf_bytes = generate_pdf(report_data, annotated_frames)
         return Response(
             pdf_bytes,
             mimetype="application/pdf",

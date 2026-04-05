@@ -1,11 +1,14 @@
 """
-pdf_report.py — Server-side PDF generation using ReportLab.
+pdf_report.py — Server-side PDF report generation using ReportLab.
 
-Produces a clean, paginated, structured PDF with:
-  - Cover page (metadata + summary stats)
-  - Littering/throwing events table (with CLIP verification)
-  - VLM scene description timeline
-  - Object track registry (with duration on screen)
+Produces a clean, text-based, paginated professional report with:
+  - Cover page with video metadata and summary statistics
+  - Executive summary paragraph
+  - Section 1: Incident Summary Table (all events at a glance)
+  - Section 2: Detailed Incident Reports (per-event, with CLIP & VLM data)
+  - Section 3: VLM Scene Description Timeline
+  - Section 4: Tracked Objects Registry
+  - Section 5: Detection Class Breakdown
 """
 
 from io import BytesIO
@@ -13,27 +16,34 @@ from datetime import datetime
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import mm, cm
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
     HRFlowable, PageBreak, KeepTogether,
 )
-from reportlab.platypus.flowables import HRFlowable
 
-# ── Colour palette ────────────────────────────────────────────────────────────
-C_PRIMARY   = colors.HexColor("#006978")   # teal
-C_ERROR     = colors.HexColor("#B3261E")   # red
-C_WARN      = colors.HexColor("#7D5260")   # muted purple
-C_INDIGO    = colors.HexColor("#4F46E5")   # clip colour
-C_SURFACE   = colors.HexColor("#F8FAFC")   # near-white bg
-C_ROW_ALT   = colors.HexColor("#EFF6FF")   # alternate table row
-C_BORDER    = colors.HexColor("#CBD5E1")
-C_TEXT      = colors.HexColor("#1E293B")
-C_MUTED     = colors.HexColor("#64748B")
-C_WHITE     = colors.white
+# ── Colour palette ─────────────────────────────────────────────────────────────
+C_PRIMARY = colors.HexColor("#006978")
+C_PRIMARY_LIGHT = colors.HexColor("#E0F4F7")
+C_ERROR   = colors.HexColor("#B3261E")
+C_ERROR_LIGHT = colors.HexColor("#FDE8E8")
+C_ORANGE  = colors.HexColor("#C25400")
+C_ORANGE_LIGHT = colors.HexColor("#FFF0E5")
+C_GREEN   = colors.HexColor("#16A34A")
+C_INDIGO  = colors.HexColor("#4338CA")
+C_INDIGO_LIGHT = colors.HexColor("#EEF2FF")
+C_SURFACE = colors.HexColor("#F8FAFC")
+C_ROW_ALT = colors.HexColor("#F0F9FA")
+C_BORDER  = colors.HexColor("#CBD5E1")
+C_BORDER_DARK = colors.HexColor("#94A3B8")
+C_TEXT    = colors.HexColor("#1E293B")
+C_MUTED   = colors.HexColor("#64748B")
+C_WHITE   = colors.white
 
+
+# ── Format helpers ─────────────────────────────────────────────────────────────
 
 def _fmt_ts(sec: float) -> str:
     m = int(sec // 60)
@@ -45,279 +55,706 @@ def _duration_str(sec: float) -> str:
     if sec < 60:
         return f"{sec:.2f}s"
     m = int(sec // 60)
-    return f"{m}m {sec - m*60:.1f}s"
+    return f"{m}m {sec - m * 60:.1f}s"
 
 
-def _truncate(text: str, max_len: int = 120) -> str:
-    return text if len(text) <= max_len else text[:max_len] + "…"
+def _trunc(text: str, n: int = 120) -> str:
+    return text if len(text) <= n else text[:n] + "\u2026"
 
 
-# ── Style helpers ─────────────────────────────────────────────────────────────
+def _pct(val: float) -> str:
+    return f"{round(val * 100, 1)}%"
+
+
+# ── Image helpers ──────────────────────────────────────────────────────────────
+
+def _arr_to_rl_image(arr, max_w_mm: float, max_h_mm: float):
+    """Convert a BGR numpy array to a ReportLab Image scaled to fit max_w × max_h."""
+    if arr is None:
+        return None
+    try:
+        from PIL import Image as PILImage
+        rgb = arr[:, :, ::-1].copy()          # BGR → RGB
+        pil = PILImage.fromarray(rgb.astype("uint8"))
+        buf = BytesIO()
+        pil.save(buf, format="JPEG", quality=88)
+        buf.seek(0)
+        iw, ih = pil.size
+        scale  = min((max_w_mm * mm) / iw, (max_h_mm * mm) / ih)
+        from reportlab.platypus import Image as RLImage
+        return RLImage(buf, width=iw * scale, height=ih * scale)
+    except Exception:
+        return None
+
+
+def _nearest_frame(frame_idx, frames: dict):
+    """Return the numpy array of the nearest annotated frame to frame_idx."""
+    if not frames:
+        return None
+    idx = int(frame_idx) if isinstance(frame_idx, (int, float)) else 0
+    if idx in frames:
+        return frames[idx]
+    return frames[min(frames.keys(), key=lambda k: abs(k - idx))]
+
+
+# ── Style builder ──────────────────────────────────────────────────────────────
+
 def _styles():
-    base = getSampleStyleSheet()
     return {
-        "title": ParagraphStyle("title", fontSize=22, textColor=C_PRIMARY,
-                                 fontName="Helvetica-Bold", spaceAfter=4,
-                                 alignment=TA_LEFT),
-        "subtitle": ParagraphStyle("subtitle", fontSize=10, textColor=C_MUTED,
-                                    fontName="Helvetica", spaceAfter=2),
-        "section": ParagraphStyle("section", fontSize=13, textColor=C_PRIMARY,
-                                   fontName="Helvetica-Bold", spaceBefore=14,
-                                   spaceAfter=6, borderPad=2),
-        "body": ParagraphStyle("body", fontSize=8.5, textColor=C_TEXT,
-                                fontName="Helvetica", leading=13),
-        "mono": ParagraphStyle("mono", fontSize=7.5, textColor=C_TEXT,
-                                fontName="Courier", leading=12),
-        "label": ParagraphStyle("label", fontSize=7, textColor=C_MUTED,
-                                 fontName="Helvetica-Bold"),
-        "clip_ok": ParagraphStyle("clip_ok", fontSize=7.5, textColor=colors.HexColor("#16A34A"),
-                                   fontName="Helvetica-Bold"),
-        "clip_err": ParagraphStyle("clip_err", fontSize=7.5, textColor=C_ERROR,
-                                    fontName="Helvetica-Bold"),
+        # Cover
+        "logo":       ParagraphStyle("logo",      fontSize=34, textColor=C_PRIMARY,
+                                      fontName="Helvetica-Bold", spaceAfter=2),
+        "tagline":    ParagraphStyle("tagline",   fontSize=13, textColor=C_MUTED,
+                                      fontName="Helvetica", spaceAfter=4),
+        "doc_title":  ParagraphStyle("doc_title", fontSize=16, textColor=C_TEXT,
+                                      fontName="Helvetica-Bold", spaceAfter=2),
+        # Section headings
+        "h1":         ParagraphStyle("h1",        fontSize=14, textColor=C_PRIMARY,
+                                      fontName="Helvetica-Bold",
+                                      spaceBefore=18, spaceAfter=6),
+        "h2":         ParagraphStyle("h2",        fontSize=11, textColor=C_TEXT,
+                                      fontName="Helvetica-Bold",
+                                      spaceBefore=12, spaceAfter=4),
+        "h3":         ParagraphStyle("h3",        fontSize=9,  textColor=C_MUTED,
+                                      fontName="Helvetica-Bold",
+                                      spaceBefore=6, spaceAfter=3),
+        # Body text
+        "body":       ParagraphStyle("body",      fontSize=9,  textColor=C_TEXT,
+                                      fontName="Helvetica",   leading=14,
+                                      alignment=TA_JUSTIFY),
+        "body_l":     ParagraphStyle("body_l",    fontSize=9,  textColor=C_TEXT,
+                                      fontName="Helvetica",   leading=14),
+        "body_b":     ParagraphStyle("body_b",    fontSize=9,  textColor=C_TEXT,
+                                      fontName="Helvetica-Bold", leading=14),
+        # Monospace / code
+        "mono":       ParagraphStyle("mono",      fontSize=8,  textColor=C_TEXT,
+                                      fontName="Courier",     leading=12),
+        # Table cell styles
+        "cell":       ParagraphStyle("cell",      fontSize=8,  textColor=C_TEXT,
+                                      fontName="Helvetica",   leading=12),
+        "cell_b":     ParagraphStyle("cell_b",    fontSize=8,  textColor=C_TEXT,
+                                      fontName="Helvetica-Bold", leading=12),
+        "cell_muted": ParagraphStyle("cell_muted",fontSize=7.5,textColor=C_MUTED,
+                                      fontName="Helvetica",   leading=11),
+        "cell_err":   ParagraphStyle("cell_err",  fontSize=8,  textColor=C_ERROR,
+                                      fontName="Helvetica-Bold", leading=12),
+        "cell_ok":    ParagraphStyle("cell_ok",   fontSize=8,  textColor=C_GREEN,
+                                      fontName="Helvetica-Bold", leading=12),
+        "cell_ind":   ParagraphStyle("cell_ind",  fontSize=8,  textColor=C_INDIGO,
+                                      fontName="Helvetica-Bold", leading=12),
+        # Table header (white on dark)
+        "th":         ParagraphStyle("th",        fontSize=7.5,textColor=C_WHITE,
+                                      fontName="Helvetica-Bold",
+                                      alignment=TA_CENTER, leading=11),
+        # Badges / labels
+        "badge_err":  ParagraphStyle("badge_err", fontSize=8,  textColor=C_ERROR,
+                                      fontName="Helvetica-Bold"),
+        "badge_ok":   ParagraphStyle("badge_ok",  fontSize=8,  textColor=C_GREEN,
+                                      fontName="Helvetica-Bold"),
+        "badge_ind":  ParagraphStyle("badge_ind", fontSize=8,  textColor=C_INDIGO,
+                                      fontName="Helvetica-Bold"),
+        # Footer
+        "foot":       ParagraphStyle("foot",      fontSize=7,  textColor=C_MUTED,
+                                      fontName="Helvetica",
+                                      alignment=TA_CENTER, spaceBefore=4),
     }
 
 
-def _section_header(title: str, styles: dict):
-    return [
-        HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=4),
-        Paragraph(title, styles["section"]),
-    ]
+# ── Layout helpers ─────────────────────────────────────────────────────────────
+
+def _rule():
+    return HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6)
 
 
-def _stat_table(stats: list, styles: dict):
-    """Render a horizontal key-value row of summary stats."""
-    data = [[Paragraph(v, ParagraphStyle("sv", fontSize=16,
-                        fontName="Helvetica-Bold", textColor=C_PRIMARY,
-                        alignment=TA_CENTER))
-             for _, v in stats],
-            [Paragraph(k, ParagraphStyle("sk", fontSize=7,
-                        fontName="Helvetica-Bold", textColor=C_MUTED,
-                        alignment=TA_CENTER))
-             for k, _ in stats]]
-    col_w = 170 / len(stats) * mm
-    t = Table(data, colWidths=[col_w] * len(stats))
+def _thin_rule():
+    return HRFlowable(width="100%", thickness=0.4, color=C_BORDER, spaceAfter=4)
+
+
+def _section(title: str, st: dict):
+    return [_rule(), Paragraph(title, st["h1"])]
+
+
+def _stat_strip(stats: list, W: float):
+    """Horizontal strip of large-number stat tiles."""
+    n  = len(stats)
+    cw = W / n
+    nums = [Paragraph(v, ParagraphStyle("sn", fontSize=20, fontName="Helvetica-Bold",
+                                         textColor=C_PRIMARY, alignment=TA_CENTER))
+            for _, v in stats]
+    lbls = [Paragraph(k, ParagraphStyle("sl", fontSize=6.5, fontName="Helvetica-Bold",
+                                         textColor=C_MUTED, alignment=TA_CENTER))
+            for k, _ in stats]
+    t = Table([nums, lbls], colWidths=[cw] * n)
     t.setStyle(TableStyle([
-        ("BOX",        (0, 0), (-1, -1), 0.5, C_BORDER),
-        ("INNERGRID",  (0, 0), (-1, -1), 0.3, C_BORDER),
-        ("BACKGROUND", (0, 0), (-1, 0), C_SURFACE),
-        ("TOPPADDING",    (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("BOX",           (0, 0), (-1, -1), 0.8, C_PRIMARY),
+        ("INNERGRID",     (0, 0), (-1, -1), 0.3, C_BORDER),
+        ("BACKGROUND",    (0, 0), (-1, -1), C_PRIMARY_LIGHT),
+        ("TOPPADDING",    (0, 0), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
     ]))
     return t
 
 
-# ── Main generator ────────────────────────────────────────────────────────────
-def generate_pdf(report_data: dict) -> bytes:
+def _base_table_style(header_bg=None):
+    bg = header_bg or C_PRIMARY
+    return [
+        ("BACKGROUND",    (0, 0), (-1, 0), bg),
+        ("TEXTCOLOR",     (0, 0), (-1, 0), C_WHITE),
+        ("FONTNAME",      (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",      (0, 0), (-1, 0), 7.5),
+        ("FONTNAME",      (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE",      (0, 1), (-1, -1), 7.5),
+        ("ROWBACKGROUNDS",(0, 1), (-1, -1), [C_WHITE, C_ROW_ALT]),
+        ("INNERGRID",     (0, 0), (-1, -1), 0.25, C_BORDER),
+        ("BOX",           (0, 0), (-1, -1), 0.5,  C_BORDER_DARK),
+        ("TOPPADDING",    (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
+        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+    ]
+
+
+# ── Main PDF builder ───────────────────────────────────────────────────────────
+
+def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
     """
-    Generate a full PDF report from the JSON report dict.
-    Returns PDF bytes.
+    Build a professional PDF report combining text analysis with annotated frame images.
+
+    Args:
+        report_data:      Enriched JSON dict from generate_report_json().
+        annotated_frames: dict[frame_idx → np.ndarray (BGR)] — used to embed
+                          the detection frame image inside each incident card.
+
+    Returns: PDF bytes.
     """
     buf = BytesIO()
     doc = SimpleDocTemplate(
-        buf,
-        pagesize=A4,
-        rightMargin=20 * mm,
-        leftMargin=20 * mm,
-        topMargin=22 * mm,
-        bottomMargin=20 * mm,
-        title="TrashGuard Incident Report",
+        buf, pagesize=A4,
+        rightMargin=22 * mm, leftMargin=22 * mm,
+        topMargin=24 * mm,   bottomMargin=22 * mm,
+        title="TrashGuard — Incident Semantic Analysis Report",
         author="TrashGuard Analytics",
     )
 
-    st = _styles()
-    W = A4[0] - 40 * mm   # usable width
+    st    = _styles()
+    W     = A4[0] - 44 * mm      # usable width ≈ 167 mm
     story = []
 
-    # ── COVER ─────────────────────────────────────────────────────────────────
-    story.append(Spacer(1, 8 * mm))
-    story.append(Paragraph("TrashGuard", ParagraphStyle(
-        "logo", fontSize=28, textColor=C_PRIMARY, fontName="Helvetica-Bold")))
-    story.append(Paragraph("Incident Semantic Analysis Report", ParagraphStyle(
-        "cov", fontSize=13, textColor=C_MUTED, fontName="Helvetica", spaceAfter=6)))
-    story.append(HRFlowable(width="100%", thickness=2, color=C_PRIMARY, spaceAfter=10))
+    # Pull data
+    events    = report_data.get("throwing_events", [])
+    vlm_tl    = report_data.get("vlm_timeline", report_data.get("vlm_descriptions", []))
+    tracks    = report_data.get("track_timeline", [])
+    class_cts = report_data.get("class_counts", {})
+    gen_at    = report_data.get("generated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    fps       = report_data.get("fps", 0)
+    dur       = report_data.get("duration_sec", 0)
+    res       = f"{report_data.get('width','?')} × {report_data.get('height','?')}"
+    video_p   = report_data.get("video_path", "N/A")
+    u_persons = report_data.get("unique_persons", 0)
+    u_trash   = report_data.get("unique_trash", 0)
+    t_events  = report_data.get("total_events", len(events))
+    clip_cnt  = report_data.get("clip_confirmed_count",
+                                sum(1 for e in events if e.get("clip_is_littering")))
+    LIT_LABELS = {
+        "a person throwing or littering trash in public",
+        "a person dropping garbage or waste on the ground",
+    }
 
-    generated_at = report_data.get("generated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    fps          = report_data.get("fps", 0)
-    dur          = report_data.get("duration_sec", 0)
-    resolution   = f"{report_data.get('width','?')}×{report_data.get('height','?')}"
-    total_frames = report_data.get("total_frames", "?")
+    # ═══════════════════════════════════════════════════════════════════
+    # COVER PAGE
+    # ═══════════════════════════════════════════════════════════════════
+    story.append(Spacer(1, 10 * mm))
+    story.append(Paragraph("TrashGuard", st["logo"]))
+    story.append(Paragraph("AI-Powered Urban Littering Detection System", st["tagline"]))
+    story.append(HRFlowable(width="100%", thickness=3, color=C_PRIMARY, spaceAfter=10))
 
-    story.append(Paragraph(f"Generated: {generated_at}", st["subtitle"]))
-    story.append(Paragraph(f"Video: {report_data.get('video_path', 'N/A')}", st["subtitle"]))
-    story.append(Paragraph(
-        f"Duration: {_fmt_ts(dur)}   FPS: {fps:.1f}   Resolution: {resolution}   Frames: {total_frames}",
-        st["subtitle"]
-    ))
-    story.append(Spacer(1, 8 * mm))
+    story.append(Paragraph("Incident Semantic Analysis Report", st["doc_title"]))
+    story.append(Spacer(1, 4 * mm))
 
-    # Summary stat grid
-    events       = report_data.get("throwing_events", [])
-    vlm_tl       = report_data.get("vlm_timeline", report_data.get("vlm_descriptions", []))
-    tracks       = report_data.get("track_timeline", [])
-    clip_conf    = report_data.get("clip_confirmed_count",
-                    sum(1 for e in events if e.get("clip_is_littering")))
-
-    stats = [
-        ("Persons",         str(report_data.get("unique_persons", 0))),
-        ("Trash Items",     str(report_data.get("unique_trash", 0))),
-        ("Events",          str(report_data.get("total_events", len(events)))),
-        ("CLIP Confirmed",  str(clip_conf)),
-        ("VLM Snapshots",   str(len(vlm_tl))),
-        ("Tracked Objects", str(len(tracks))),
+    # Metadata table
+    meta_rows = [
+        ["Report Generated",  gen_at],
+        ["Video File",        _trunc(str(video_p), 75)],
+        ["Video Duration",    f"{_fmt_ts(dur)}"
+                              f"  ({dur:.1f} seconds)"],
+        ["Frame Rate",        f"{fps:.1f} fps"],
+        ["Resolution",        res],
+        ["Total Frames Analysed", str(report_data.get("total_frames", "—"))],
+        ["Analysis Mode",     "YOLO + BoT-SORT + CLIP + VLM"],
     ]
-    story.append(_stat_table(stats, st))
+    mt = Table(meta_rows, colWidths=[50 * mm, W - 50 * mm])
+    mt.setStyle(TableStyle([
+        ("FONTNAME",      (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTSIZE",      (0, 0), (-1, -1), 8.5),
+        ("TEXTCOLOR",     (0, 0), (0, -1), C_MUTED),
+        ("TEXTCOLOR",     (1, 0), (1, -1), C_TEXT),
+        ("BACKGROUND",    (0, 0), (-1, -1), C_SURFACE),
+        ("BOX",           (0, 0), (-1, -1), 0.5, C_BORDER),
+        ("INNERGRID",     (0, 0), (-1, -1), 0.2, C_BORDER),
+        ("TOPPADDING",    (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+    ]))
+    story.append(mt)
+    story.append(Spacer(1, 8 * mm))
+
+    # Summary stat strip
+    story.append(_stat_strip([
+        ("Persons Detected",   str(u_persons)),
+        ("Trash Items",        str(u_trash)),
+        ("Events Flagged",     str(t_events)),
+        ("CLIP Confirmed",     str(clip_cnt)),
+        ("VLM Snapshots",      str(len(vlm_tl))),
+        ("Tracked Objects",    str(len(tracks))),
+    ], W))
+
     story.append(PageBreak())
 
-    # ── SECTION 1: LITTERING EVENTS ───────────────────────────────────────────
-    story += _section_header("1.  Littering / Throwing Events", st)
+    # ═══════════════════════════════════════════════════════════════════
+    # EXECUTIVE SUMMARY
+    # ═══════════════════════════════════════════════════════════════════
+    story += _section("Executive Summary", st)
+
+    # Build a natural-language summary paragraph
+    clip_rate = f"{round(clip_cnt / t_events * 100)}%" if t_events > 0 else "N/A"
+    summary_text = (
+        f"This report presents the results of an automated littering-detection analysis "
+        f"performed on the submitted video footage. The video runs for "
+        f"<b>{_fmt_ts(dur)}</b> ({dur:.1f} seconds) at <b>{fps:.1f} frames per second</b> "
+        f"with a resolution of <b>{res}</b> pixels. "
+        f"The analysis pipeline combines YOLOv11 object detection with BoT-SORT multi-object "
+        f"tracking, CLIP zero-shot scene classification, and a Vision-Language Model (VLM) "
+        f"for rich scene descriptions. "
+        f"A total of <b>{u_persons} unique person(s)</b> and "
+        f"<b>{u_trash} unique waste item(s)</b> were tracked across the footage. "
+        f"The system flagged <b>{t_events} littering or throwing event(s)</b>, "
+        f"of which <b>{clip_cnt} event(s)</b> were independently confirmed as littering "
+        f"behaviour by the CLIP classifier (confirmation rate: {clip_rate}). "
+        f"Refer to the Incident Log (Section 2) for full per-event details."
+    )
+    story.append(Paragraph(summary_text, st["body"]))
+    story.append(Spacer(1, 4 * mm))
+
+    # Findings highlights box
+    if t_events > 0:
+        severity = "HIGH" if clip_cnt > 0 else "MEDIUM"
+        sev_color = C_ERROR if clip_cnt > 0 else C_ORANGE
+        story.append(Paragraph(
+            f"• Incident Severity: <b>{severity}</b>  "
+            f"({'Littering confirmed by CLIP AI' if clip_cnt > 0 else 'Events detected; confirmation below CLIP threshold'})",
+            ParagraphStyle("sev", fontSize=9, textColor=sev_color,
+                           fontName="Helvetica-Bold", leading=14,
+                           borderColor=sev_color, borderWidth=0.5,
+                           borderPad=6, borderRadius=3,
+                           backColor=C_ERROR_LIGHT if clip_cnt > 0 else C_ORANGE_LIGHT),
+        ))
+        story.append(Spacer(1, 4 * mm))
+
+    story.append(PageBreak())
+
+    # ═══════════════════════════════════════════════════════════════════
+    # SECTION 1: INCIDENT SUMMARY TABLE
+    # ═══════════════════════════════════════════════════════════════════
+    story += _section("Section 1 — Incident Summary", st)
+    story.append(Paragraph(
+        "The table below lists every detected littering or throwing event "
+        "with its timestamp, involved person and waste track IDs, "
+        "and the CLIP AI verification result.",
+        st["body"]
+    ))
+    story.append(Spacer(1, 4 * mm))
+
+    if not events:
+        story.append(Paragraph(
+            "No littering events were detected in this video.", st["body"]))
+    else:
+        hdr1 = [
+            Paragraph("#",              st["th"]),
+            Paragraph("Timestamp",      st["th"]),
+            Paragraph("Frame",          st["th"]),
+            Paragraph("Person\nTrack",  st["th"]),
+            Paragraph("Waste\nTrack",   st["th"]),
+            Paragraph("CLIP Confidence",st["th"]),
+            Paragraph("Littering\nConfirmed", st["th"]),
+        ]
+        cw1 = [8*mm, 26*mm, 16*mm, 18*mm, 18*mm, 32*mm, 30*mm]
+
+        rows1 = [hdr1]
+        for i, evt in enumerate(events, 1):
+            ts_fmt = evt.get("time_formatted", _fmt_ts(evt.get("timestamp", 0)))
+            fnum   = evt.get("frame_idx", "—")
+            pid    = evt.get("person_track_id", "—")
+            tid    = evt.get("trash_track_id",  "—")
+            c_lbl  = evt.get("clip_label", "")
+            c_pct  = round(evt.get("clip_confidence", 0) * 100, 1)
+            c_lit  = evt.get("clip_is_littering", False)
+
+            conf_txt   = f"{c_lbl[:22]}… ({c_pct}%)" if c_lbl else "—"
+            verdict    = "YES  ⚠" if c_lit else ("NO" if c_lbl else "—")
+            vstyle     = st["cell_err"] if c_lit else (st["cell_ok"] if c_lbl else st["cell"])
+
+            rows1.append([
+                Paragraph(str(i),    st["cell_b"]),
+                Paragraph(ts_fmt,    st["cell_b"]),
+                Paragraph(str(fnum), st["cell"]),
+                Paragraph(f"#{pid}", st["cell_b"]),
+                Paragraph(f"#{tid}", st["cell_b"]),
+                Paragraph(conf_txt,  st["cell_muted"]),
+                Paragraph(verdict,   vstyle),
+            ])
+
+        t1 = Table(rows1, colWidths=cw1, repeatRows=1)
+        ts1 = _base_table_style()
+        # Colour YES rows
+        for ri, evt in enumerate(events, 1):
+            if evt.get("clip_is_littering"):
+                ts1.append(("BACKGROUND", (0, ri), (-1, ri), C_ERROR_LIGHT))
+        t1.setStyle(TableStyle(ts1))
+        story.append(t1)
+
+    story.append(PageBreak())
+
+    # ═══════════════════════════════════════════════════════════════════
+    # SECTION 2: DETAILED INCIDENT REPORTS
+    # ═══════════════════════════════════════════════════════════════════
+    story += _section("Section 2 — Detailed Incident Reports", st)
+    story.append(Paragraph(
+        "Each entry below provides the full analysis for one detected incident, "
+        "including scene description, CLIP zero-shot classification scores, "
+        "and all tracking identifiers.",
+        st["body"]
+    ))
+    story.append(Spacer(1, 4 * mm))
 
     if not events:
         story.append(Paragraph("No littering events detected.", st["body"]))
     else:
-        hdr = ["#", "Time", "Frame", "Person\nTrack", "Trash\nTrack",
-               "CLIP Label", "Conf.", "Verified", "Description"]
-        col_w = [8*mm, 18*mm, 13*mm, 12*mm, 12*mm, 36*mm, 12*mm, 14*mm, None]
-        # last col fills remaining
-        used = sum(w for w in col_w[:-1])
-        col_w[-1] = W - used
-
-        rows = [hdr]
         for i, evt in enumerate(events, 1):
-            clip_label = evt.get("clip_label", "")
-            clip_conf_val = evt.get("clip_confidence", 0.0)
-            clip_lit  = evt.get("clip_is_littering", False)
-            rows.append([
-                str(i),
-                evt.get("time_formatted", _fmt_ts(evt.get("timestamp", 0))),
-                str(evt.get("frame_idx", "")),
-                str(evt.get("person_track_id", "")),
-                str(evt.get("trash_track_id", "")),
-                _truncate(clip_label, 40),
-                f"{clip_conf_val*100:.0f}%" if clip_label else "—",
-                "YES ⚠" if clip_lit else ("NO" if clip_label else "—"),
-                _truncate(evt.get("description", ""), 80),
-            ])
+            ts_s   = evt.get("timestamp", 0)
+            ts_fmt = evt.get("time_formatted", _fmt_ts(ts_s))
+            fnum   = evt.get("frame_idx", "—")
+            pid    = evt.get("person_track_id", "—")
+            tid    = evt.get("trash_track_id",  "—")
+            desc   = evt.get("description", "")
+            c_lbl  = evt.get("clip_label", "")
+            c_pct  = round(evt.get("clip_confidence", 0) * 100, 1)
+            c_lit  = evt.get("clip_is_littering", False)
+            c_scrs = evt.get("clip_all_scores", {})
 
-        t = Table(rows, colWidths=col_w, repeatRows=1)
-        ts = TableStyle([
-            ("BACKGROUND",   (0, 0), (-1, 0), C_PRIMARY),
-            ("TEXTCOLOR",    (0, 0), (-1, 0), C_WHITE),
-            ("FONTNAME",     (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE",     (0, 0), (-1, 0), 7.5),
-            ("FONTNAME",     (0, 1), (-1, -1), "Helvetica"),
-            ("FONTSIZE",     (0, 1), (-1, -1), 7),
-            ("INNERGRID",    (0, 0), (-1, -1), 0.25, C_BORDER),
-            ("BOX",          (0, 0), (-1, -1), 0.5, C_BORDER),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_ROW_ALT]),
-            ("VALIGN",       (0, 0), (-1, -1), "TOP"),
-            ("TOPPADDING",   (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
-        ])
-        # Highlight CLIP confirmed rows red
-        for i, evt in enumerate(events, 1):
-            if evt.get("clip_is_littering"):
-                ts.add("TEXTCOLOR", (7, i), (7, i), C_ERROR)
-                ts.add("FONTNAME",  (7, i), (7, i), "Helvetica-Bold")
-        t.setStyle(ts)
-        story.append(t)
+            # Incident heading
+            sev_bg  = C_ERROR_LIGHT if c_lit else (C_ORANGE_LIGHT if c_lbl else C_PRIMARY_LIGHT)
+            sev_clr = C_ERROR if c_lit else (C_ORANGE if c_lbl else C_PRIMARY)
+            verdict = ("LITTERING CONFIRMED  ⚠" if c_lit
+                       else ("FLAGGED — BELOW THRESHOLD" if c_lbl else "DETECTED"))
+
+            hdr_data = [[
+                Paragraph(f"Incident #{i}", ParagraphStyle(
+                    f"ih{i}", fontSize=11, fontName="Helvetica-Bold",
+                    textColor=sev_clr)),
+                Paragraph(f"Timestamp: {ts_fmt}    {verdict}",
+                          ParagraphStyle(f"ihd{i}", fontSize=9,
+                                         fontName="Helvetica-Bold",
+                                         textColor=sev_clr,
+                                         alignment=TA_RIGHT)),
+            ]]
+            ihdr = Table(hdr_data, colWidths=[W * 0.45, W * 0.55])
+            ihdr.setStyle(TableStyle([
+                ("BACKGROUND",    (0, 0), (-1, -1), sev_bg),
+                ("BOX",           (0, 0), (-1, -1), 0.8, sev_clr),
+                ("TOPPADDING",    (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+                ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+            ]))
+
+            # Detail attributes table
+            attr_rows = [
+                ["Timestamp",           ts_fmt],
+                ["Frame Number",        str(fnum)],
+                ["Person Track ID",     f"#{pid}"],
+                ["Waste / Trash Track ID", f"#{tid}"],
+                ["Seconds into video",  f"{ts_s:.2f} s   ({ts_s / dur * 100:.1f}% of video)" if dur > 0 else f"{ts_s:.2f}s"],
+            ]
+            if c_lbl:
+                attr_rows += [
+                    ["CLIP Best Label",      _trunc(c_lbl, 65)],
+                    ["CLIP Confidence",      f"{c_pct}%"],
+                    ["Littering Verdict",    "YES — Littering behaviour confirmed" if c_lit
+                                             else "NO — Below littering confidence threshold"],
+                ]
+
+            at = Table(attr_rows, colWidths=[45 * mm, W - 45 * mm])
+            at_sty = [
+                ("FONTNAME",      (0, 0), (0, -1), "Helvetica-Bold"),
+                ("FONTSIZE",      (0, 0), (-1, -1), 8.5),
+                ("TEXTCOLOR",     (0, 0), (0, -1), C_MUTED),
+                ("TEXTCOLOR",     (1, 0), (1, -1), C_TEXT),
+                ("INNERGRID",     (0, 0), (-1, -1), 0.2, C_BORDER),
+                ("BOX",           (0, 0), (-1, -1), 0.5, C_BORDER),
+                ("BACKGROUND",    (0, 0), (-1, -1), C_WHITE),
+                ("ROWBACKGROUNDS",(0, 0), (-1, -1), [C_WHITE, C_SURFACE]),
+                ("TOPPADDING",    (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+            ]
+            # Highlight littering row
+            if c_lbl:
+                lit_r = len(attr_rows) - 1
+                at_sty.append(("TEXTCOLOR",  (1, lit_r), (1, lit_r),
+                                C_ERROR if c_lit else C_GREEN))
+                at_sty.append(("FONTNAME",   (1, lit_r), (1, lit_r), "Helvetica-Bold"))
+            at.setStyle(TableStyle(at_sty))
+
+            # ── Annotated frame image ──────────────────────────────────────
+            # Fetch the nearest saved annotated frame for this event and embed it.
+            frames_dict = annotated_frames or {}
+            frame_arr   = _nearest_frame(fnum, frames_dict)
+            frame_img   = _arr_to_rl_image(frame_arr, W / mm, 90)  # max 90 mm tall
+
+            if frame_img is not None:
+                frame_caption = Paragraph(
+                    f"Figure: Annotated detection frame  ·  "
+                    f"Frame #{fnum}  ·  {ts_fmt}  ·  "
+                    f"Person #{pid}  /  Waste #{tid}",
+                    ParagraphStyle(f"fc{i}", fontSize=7, textColor=C_MUTED,
+                                   fontName="Helvetica", alignment=TA_CENTER,
+                                   spaceBefore=2),
+                )
+                # Centre image in a full-width wrapper table
+                img_wrapper = Table(
+                    [[frame_img]],
+                    colWidths=[W],
+                )
+                img_wrapper.setStyle(TableStyle([
+                    ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+                    ("BOX",           (0, 0), (-1, -1), 0.5, C_BORDER),
+                    ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor("#0A1628")),
+                    ("TOPPADDING",    (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ]))
+                frame_block = [Spacer(1, 3 * mm), img_wrapper,
+                               frame_caption, Spacer(1, 3 * mm)]
+            else:
+                frame_block = [Spacer(1, 3 * mm)]
+            scene_block = []
+            if desc:
+                scene_block = [
+                    Paragraph("Scene Description", st["h3"]),
+                    Paragraph(desc, st["body"]),
+                    Spacer(1, 3 * mm),
+                ]
+
+            # CLIP score breakdown
+            clip_block = []
+            if c_scrs:
+                score_rows = sorted(c_scrs.items(), key=lambda x: -x[1])
+                clip_hdr   = [
+                    Paragraph("Classification Label", st["th"]),
+                    Paragraph("Score",  st["th"]),
+                    Paragraph("Result", st["th"]),
+                ]
+                clip_data  = [clip_hdr]
+                for lbl, scr in score_rows:
+                    pct_v   = round(scr * 100, 1)
+                    is_lit  = lbl in LIT_LABELS
+                    l_style = st["cell_err"] if (is_lit and pct_v > 30) else st["cell_muted"]
+                    r_style = st["cell_err"] if (is_lit and pct_v > 30) else st["cell_ok"]
+                    result  = "Littering" if is_lit else "Non-littering"
+                    clip_data.append([
+                        Paragraph(_trunc(lbl, 60), l_style),
+                        Paragraph(f"{pct_v}%",     l_style),
+                        Paragraph(result,           r_style),
+                    ])
+                ct = Table(clip_data, colWidths=[W - 42 * mm, 18 * mm, 24 * mm],
+                           repeatRows=1)
+                ct_sty = _base_table_style(C_INDIGO)
+                for ri, (lbl, scr) in enumerate(score_rows, 1):
+                    if lbl in LIT_LABELS:
+                        ct_sty.append(("BACKGROUND", (0, ri), (-1, ri), C_ERROR_LIGHT))
+                ct.setStyle(TableStyle(ct_sty))
+
+                clip_block = [
+                    Paragraph("CLIP Zero-Shot Classification Scores", st["h3"]),
+                    Paragraph(
+                        "The following scores represent the model's confidence across "
+                        "all candidate scene labels:",
+                        st["body_l"]),
+                    Spacer(1, 2 * mm),
+                    ct,
+                    Spacer(1, 3 * mm),
+                ]
+
+            story.append(KeepTogether([ihdr, Spacer(1, 3 * mm), at]))
+            story.extend(frame_block)
+            story.extend(scene_block + clip_block)
+            story.append(Spacer(1, 8 * mm))
 
     story.append(PageBreak())
 
-    # ── SECTION 2: VLM SCENE TIMELINE ─────────────────────────────────────────
-    story += _section_header("2.  VLM Scene Description Timeline", st)
+    # ═══════════════════════════════════════════════════════════════════
+    # SECTION 3: VLM SCENE DESCRIPTION TIMELINE
+    # ═══════════════════════════════════════════════════════════════════
+    story += _section("Section 3 — VLM Scene Description Timeline", st)
+    story.append(Paragraph(
+        "The Vision-Language Model (VLM) was sampled at regular intervals "
+        "throughout the video to produce natural-language descriptions of the scene. "
+        "Each entry is cross-referenced with the nearest detected incident, "
+        "where applicable.",
+        st["body"]
+    ))
+    story.append(Spacer(1, 4 * mm))
 
     if not vlm_tl:
-        story.append(Paragraph("No VLM descriptions generated.", st["body"]))
+        story.append(Paragraph("No VLM descriptions were generated.", st["body"]))
     else:
-        for vd in vlm_tl:
-            ts_str   = vd.get("time_formatted", _fmt_ts(vd.get("timestamp", 0)))
-            frame_n  = vd.get("frame_idx", "")
-            desc     = vd.get("description", "")
-            active   = vd.get("active_objects", [])
-            near_evt = vd.get("nearest_event")
+        vlm_hdr = [
+            Paragraph("Timestamp",       st["th"]),
+            Paragraph("Frame #",         st["th"]),
+            Paragraph("Active Objects",  st["th"]),
+            Paragraph("Scene Description", st["th"]),
+            Paragraph("Nearest Event",   st["th"]),
+        ]
+        vlm_cw = [22 * mm, 14 * mm, 28 * mm, None, 22 * mm]
+        vlm_cw[3] = W - sum(c for c in vlm_cw if c)
 
-            # Active object summary
-            obj_groups: dict = {}
+        vlm_rows = [vlm_hdr]
+        for vd in vlm_tl:
+            ts_str  = vd.get("time_formatted", _fmt_ts(vd.get("timestamp", 0)))
+            fnum    = vd.get("frame_idx", "—")
+            desc_v  = vd.get("description", "—")
+            active  = vd.get("active_objects", [])
+            near    = vd.get("nearest_event")
+
+            obj_grp: dict = {}
             for o in active:
                 cls = o.get("class_name", "?")
-                obj_groups[cls] = obj_groups.get(cls, 0) + 1
-            obj_str = "  |  ".join(f"{cnt}× {cls}" for cls, cnt in obj_groups.items()) or "No objects"
+                obj_grp[cls] = obj_grp.get(cls, 0) + 1
+            obj_str = "\n".join(f"{n}× {c}" for c, n in obj_grp.items()) or "—"
 
-            header_text = f"⏱  {ts_str}   Frame #{frame_n}   —   {obj_str}"
-            if near_evt:
-                near_ts = near_evt.get("time_formatted", _fmt_ts(near_evt.get("timestamp", 0)))
-                header_text += f"   ⚠ Event @ {near_ts}"
+            near_txt = "—"
+            if near:
+                ne_ts  = near.get("time_formatted", _fmt_ts(near.get("timestamp", 0)))
+                ne_lit = near.get("clip_is_littering", False)
+                near_txt = f"⚠ {ne_ts}" if ne_lit else ne_ts
 
-            block = [
-                Paragraph(header_text, ParagraphStyle(
-                    "tsh", fontSize=7.5, fontName="Helvetica-Bold",
-                    textColor=C_PRIMARY, spaceBefore=8, spaceAfter=2)),
-                Paragraph(desc, st["mono"]),
-            ]
+            vlm_rows.append([
+                Paragraph(ts_str,              st["cell_b"]),
+                Paragraph(str(fnum),           st["cell"]),
+                Paragraph(obj_str,             st["cell_muted"]),
+                Paragraph(_trunc(desc_v, 180), st["mono"]),
+                Paragraph(near_txt,            st["cell_err"] if "⚠" in near_txt else st["cell"]),
+            ])
 
-            # CLIP line from nearest event
-            if near_evt and near_evt.get("clip_label"):
-                clip_pct = round(near_evt.get("clip_confidence", 0) * 100)
-                clip_lit = near_evt.get("clip_is_littering", False)
-                clip_style = st["clip_err"] if clip_lit else st["clip_ok"]
-                verdict = "⚠ Littering Confirmed" if clip_lit else "✓ No Littering"
-                block.append(Paragraph(
-                    f"CLIP: {near_evt['clip_label']}  ({clip_pct}%)  —  {verdict}",
-                    clip_style))
-
-            story.append(KeepTogether(block))
+        tv = Table(vlm_rows, colWidths=vlm_cw, repeatRows=1)
+        tv.setStyle(TableStyle(_base_table_style()))
+        story.append(tv)
 
     story.append(PageBreak())
 
-    # ── SECTION 3: OBJECT TRACK REGISTRY ──────────────────────────────────────
-    story += _section_header("3.  Tracked Objects Registry", st)
+    # ═══════════════════════════════════════════════════════════════════
+    # SECTION 4: TRACKED OBJECTS REGISTRY
+    # ═══════════════════════════════════════════════════════════════════
+    story += _section("Section 4 — Tracked Objects Registry", st)
+    story.append(Paragraph(
+        "All unique objects tracked throughout the video, with first appearance, "
+        "last appearance, duration on screen, and total detection count.",
+        st["body"]
+    ))
+    story.append(Spacer(1, 4 * mm))
 
     if not tracks:
         story.append(Paragraph("No tracking data available.", st["body"]))
     else:
-        hdr = ["Track ID", "Class", "Model", "First Seen", "Last Seen", "Duration", "Detections"]
-        col_w2 = [18*mm, 22*mm, 22*mm, 22*mm, 22*mm, 22*mm, 20*mm]
-        used2 = sum(col_w2)
-        # distribute leftover
-        diff = W - used2
-        col_w2[1] += diff
+        tr_hdr = [
+            Paragraph("Track ID",   st["th"]),
+            Paragraph("Class",      st["th"]),
+            Paragraph("Model",      st["th"]),
+            Paragraph("First Seen", st["th"]),
+            Paragraph("Last Seen",  st["th"]),
+            Paragraph("Duration",   st["th"]),
+            Paragraph("Detections", st["th"]),
+        ]
+        tr_cw = [16*mm, 22*mm, 22*mm, 24*mm, 24*mm, 22*mm, None]
+        tr_cw[-1] = W - sum(c for c in tr_cw if c)
 
-        rows2 = [hdr]
+        tr_rows = [tr_hdr]
         for tr in tracks:
             dur_s = tr.get("duration_str") or _duration_str(tr.get("duration_sec", 0))
-            rows2.append([
-                f"#{tr.get('track_id', '')}",
-                tr.get("class_name", ""),
-                tr.get("source_model", ""),
-                tr.get("first_seen_fmt", _fmt_ts(tr.get("first_seen", 0))),
-                tr.get("last_seen_fmt",  _fmt_ts(tr.get("last_seen", 0))),
-                dur_s,
-                str(tr.get("detections", "")),
+            cls   = tr.get("class_name", "")
+            src   = tr.get("source_model", "")
+            is_trash  = src == "custom"
+            cls_style = st["cell_err"] if is_trash else st["cell_ind"] if cls == "person" else st["cell"]
+            tr_rows.append([
+                Paragraph(f"#{tr.get('track_id', '')}",          st["cell_b"]),
+                Paragraph(cls,                                     cls_style),
+                Paragraph(src,                                     st["cell_muted"]),
+                Paragraph(tr.get("first_seen_fmt", _fmt_ts(tr.get("first_seen", 0))),
+                          st["cell"]),
+                Paragraph(tr.get("last_seen_fmt",  _fmt_ts(tr.get("last_seen",  0))),
+                          st["cell"]),
+                Paragraph(dur_s,                                   st["cell_b"]),
+                Paragraph(str(tr.get("detections", "")),           st["cell_b"]),
             ])
 
-        t2 = Table(rows2, colWidths=col_w2, repeatRows=1)
-        t2.setStyle(TableStyle([
-            ("BACKGROUND",   (0, 0), (-1, 0), C_PRIMARY),
-            ("TEXTCOLOR",    (0, 0), (-1, 0), C_WHITE),
-            ("FONTNAME",     (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE",     (0, 0), (-1, 0), 7.5),
-            ("FONTNAME",     (0, 1), (-1, -1), "Helvetica"),
-            ("FONTSIZE",     (0, 1), (-1, -1), 7.5),
-            ("INNERGRID",    (0, 0), (-1, -1), 0.25, C_BORDER),
-            ("BOX",          (0, 0), (-1, -1), 0.5, C_BORDER),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_ROW_ALT]),
-            ("TOPPADDING",   (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
-        ]))
-        story.append(t2)
+        tt = Table(tr_rows, colWidths=tr_cw, repeatRows=1)
+        tt.setStyle(TableStyle(_base_table_style()))
+        story.append(tt)
 
-    # ── Footer note ───────────────────────────────────────────────────────────
-    story.append(Spacer(1, 8 * mm))
-    story.append(HRFlowable(width="100%", thickness=0.5, color=C_BORDER))
+    story.append(PageBreak())
+
+    # ═══════════════════════════════════════════════════════════════════
+    # SECTION 5: DETECTION CLASS BREAKDOWN
+    # ═══════════════════════════════════════════════════════════════════
+    story += _section("Section 5 — Detection Class Breakdown", st)
     story.append(Paragraph(
-        f"TrashGuard Analytics  ·  Generated {generated_at}  ·  CLIP model: openai/clip-vit-base-patch32",
-        ParagraphStyle("foot", fontSize=7, textColor=C_MUTED, alignment=TA_CENTER,
-                       spaceBefore=4, fontName="Helvetica"),
+        "Total number of individual frame-level detections per object class "
+        "across the entire video.",
+        st["body"]
+    ))
+    story.append(Spacer(1, 4 * mm))
+
+    if not class_cts:
+        story.append(Paragraph("No detection data available.", st["body"]))
+    else:
+        total_dets = sum(class_cts.values())
+        cb_hdr = [
+            Paragraph("Object Class",  st["th"]),
+            Paragraph("Detections",    st["th"]),
+            Paragraph("% of Total",    st["th"]),
+            Paragraph("Type",          st["th"]),
+        ]
+        cb_cw = [50 * mm, 30 * mm, 30 * mm, None]
+        cb_cw[-1] = W - sum(c for c in cb_cw if c)
+        cb_rows = [cb_hdr]
+        for cls, cnt in sorted(class_cts.items(), key=lambda x: -x[1]):
+            pct_v  = round(cnt / total_dets * 100, 1) if total_dets else 0
+            is_tr  = cls not in {"person","car","truck","bus","bicycle","motorcycle"}
+            ctype  = "Waste / Trash" if is_tr else "Person/Vehicle"
+            cstyle = st["cell_err"] if is_tr else st["cell_ind"] if cls == "person" else st["cell"]
+            cb_rows.append([
+                Paragraph(cls,         cstyle),
+                Paragraph(str(cnt),    st["cell_b"]),
+                Paragraph(f"{pct_v}%", st["cell"]),
+                Paragraph(ctype,       st["cell_err"] if is_tr else st["cell_muted"]),
+            ])
+
+        tc = Table(cb_rows, colWidths=cb_cw, repeatRows=1)
+        tc.setStyle(TableStyle(_base_table_style()))
+        story.append(tc)
+
+    # ═══════════════════════════════════════════════════════════════════
+    # FOOTER
+    # ═══════════════════════════════════════════════════════════════════
+    story.append(Spacer(1, 10 * mm))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=C_BORDER, spaceAfter=6))
+    story.append(Paragraph(
+        f"TrashGuard Analytics  ·  Report generated: {gen_at}  ·  "
+        "Detection models: YOLOv11 (yolo11n.pt) + custom (best.pt)  ·  "
+        "Verification: openai/clip-vit-base-patch32",
+        st["foot"]
     ))
 
     doc.build(story)

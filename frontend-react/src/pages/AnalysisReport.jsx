@@ -233,7 +233,7 @@ function FrameGallery({ jobId, throwingEvents, fps }) {
 // ── Main AnalysisReport component ─────────────────────────────────────────────
 export default function AnalysisReport({ data, jobId, onReset }) {
     const reportRef = useRef(null);
-    const { exporting, exportError, downloadServerPdf, downloadClientPdf } = usePdfExport();
+    const { exporting, exportError, downloadPdf } = usePdfExport();
 
     if (!data) return null;
 
@@ -331,24 +331,14 @@ export default function AnalysisReport({ data, jobId, onReset }) {
                                 CSV
                             </button>
 
-                            {/* Server-side structured PDF */}
+                        {/* PDF Report — server-generated text document */}
                             <button
-                                onClick={() => downloadServerPdf(jobId)}
-                                disabled={exporting}
-                                className="flex items-center px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-sm font-semibold hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
-                            >
-                                <span className="material-symbols-outlined mr-1.5 text-sm">picture_as_pdf</span>
-                                {exporting ? 'Generating…' : 'PDF Report'}
-                            </button>
-
-                            {/* Client-side visual PDF */}
-                            <button
-                                onClick={() => downloadClientPdf(reportRef, jobId)}
+                                onClick={() => downloadPdf(jobId)}
                                 disabled={exporting}
                                 className="flex items-center px-5 py-2.5 rounded-xl primary-gradient text-white text-sm font-semibold shadow-lg hover:scale-105 transition-transform disabled:opacity-50"
                             >
-                                <span className="material-symbols-outlined mr-2">file_download</span>
-                                {exporting ? 'Capturing…' : 'Visual PDF'}
+                                <span className="material-symbols-outlined mr-2">picture_as_pdf</span>
+                                {exporting ? 'Generating Report…' : 'Download Report PDF'}
                             </button>
                         </div>
 
