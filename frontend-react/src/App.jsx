@@ -136,10 +136,10 @@ export default function App() {
   }
 
   return (
-    <div className="flex bg-background text-on-surface min-h-screen">
+    <div className="flex bg-background text-on-surface min-h-screen overflow-x-hidden">
       <Sidebar activeView={activeView} setActiveView={setActiveView} />
 
-      <main className="ml-64 flex-1 flex flex-col min-h-screen h-screen">
+      <main className="lg:ml-64 flex-1 flex flex-col min-h-screen h-screen min-w-0">
         <Topbar 
             title={
                 activeView === SIDEBAR_VIEW.DASHBOARD ? "Live Stream & Inference" :
@@ -149,7 +149,7 @@ export default function App() {
             subtitle={getSubTitle()} 
         />
         
-        <div className="flex-1 overflow-auto bg-surface-bright pb-10">
+        <div className="flex-1 overflow-auto bg-surface-bright pb-6 lg:pb-10">
             {activeView === SIDEBAR_VIEW.DASHBOARD && (
                 <Dashboard 
                     onAnalyze={handleAnalyze} 

@@ -231,12 +231,12 @@ def download_pdf(job_id: str):
     if not job or job["status"] != "done":
         return jsonify({"error": "Job not ready or not found"}), 404
 
-    result: AnalysisResult = job.get("result")
-    if result is None:
+    # job["result"] is already the fully enriched JSON dict from generate_report_json()
+    report_data = job.get("result")
+    if report_data is None:
         return jsonify({"error": "No result data"}), 404
 
     try:
-        report_data = generate_report_json(result)
         pdf_bytes = generate_pdf(report_data)
         return Response(
             pdf_bytes,

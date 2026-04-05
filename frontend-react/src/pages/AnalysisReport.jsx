@@ -87,8 +87,11 @@ function FrameGallery({ jobId, throwingEvents, fps }) {
                     </div>
                 </div>
 
-                {/* Main Viewer */}
-                <div className="relative bg-[#08100e] group" style={{ minHeight: 420 }}>
+                {/* Main Viewer — centred flex wrapper so object-contain doesn't drift left */}
+                <div
+                    className="relative bg-[#08100e] group flex items-center justify-center w-full overflow-hidden"
+                    style={{ minHeight: 'clamp(240px, 35vw, 560px)' }}
+                >
                     {imgError ? (
                         <div className="absolute inset-0 flex items-center justify-center text-outline-variant flex-col gap-2">
                             <span className="material-symbols-outlined text-4xl">broken_image</span>
@@ -100,44 +103,45 @@ function FrameGallery({ jobId, throwingEvents, fps }) {
                             src={frameUrl(jobId, currentFrame)}
                             alt={`Annotated frame ${currentFrame}`}
                             onError={() => setImgError(true)}
-                            className="w-full object-contain"
-                            style={{ maxHeight: 520 }}
+                            className="max-w-full max-h-full object-contain block"
+                            style={{ maxHeight: 'clamp(220px, 33vw, 540px)' }}
                         />
                     )}
 
                     {/* Event Badge */}
                     {isEventFrame && (
-                        <div className="absolute top-4 left-4 flex items-center gap-2 bg-[#a83836]/90 backdrop-blur-sm text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg animate-pulse">
+                        <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex items-center gap-2 bg-[#a83836]/90 backdrop-blur-sm text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs font-bold shadow-lg animate-pulse">
                             <span className="material-symbols-outlined text-sm">warning</span>
-                            LITTERING EVENT DETECTED
+                            <span className="hidden sm:inline">LITTERING EVENT DETECTED</span>
+                            <span className="sm:hidden">LITTERING</span>
                         </div>
                     )}
 
                     {/* Timestamp badge */}
                     {timestampSec && (
-                        <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-mono font-bold">
-                            ⏱ {timestampSec}s · Frame #{currentFrame}
+                        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-black/60 backdrop-blur-sm text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-mono font-bold">
+                            ⏱ {timestampSec}s · #{currentFrame}
                         </div>
                     )}
 
                     {/* Prev / Next arrows */}
                     <button
                         onClick={() => go(-1)}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/80 backdrop-blur-sm text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-lg"
+                        className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 bg-black/50 hover:bg-black/80 backdrop-blur-sm text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-lg"
                     >
-                        <span className="material-symbols-outlined">chevron_left</span>
+                        <span className="material-symbols-outlined text-lg sm:text-2xl">chevron_left</span>
                     </button>
                     <button
                         onClick={() => go(1)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/80 backdrop-blur-sm text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-lg"
+                        className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 bg-black/50 hover:bg-black/80 backdrop-blur-sm text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-lg"
                     >
-                        <span className="material-symbols-outlined">chevron_right</span>
+                        <span className="material-symbols-outlined text-lg sm:text-2xl">chevron_right</span>
                     </button>
                 </div>
 
-                {/* Thumbnail Strip */}
-                <div className="p-4 bg-[#0d1a18] overflow-x-auto">
-                    <div className="flex gap-2 min-w-max">
+                {/* Thumbnail Strip — scrollable, responsive thumbnail size */}
+                <div className="p-3 sm:p-4 bg-[#0d1a18] overflow-x-auto">
+                    <div className="flex gap-1.5 sm:gap-2">
                         {frames.map((fi, ti) => {
                             const isEvent = eventFrameSet.has(fi);
                             const isActive = ti === activeIdx;
@@ -152,7 +156,7 @@ function FrameGallery({ jobId, throwingEvents, fps }) {
                                             ? 'border-error/60 hover:border-error'
                                             : 'border-transparent hover:border-outline-variant/40'
                                     }`}
-                                    style={{ width: 96, height: 54 }}
+                                    style={{ width: 'clamp(64px, 8vw, 96px)', aspectRatio: '16/9' }}
                                     title={`Frame ${fi}${isEvent ? ' ⚠ Event' : ''}`}
                                 >
                                     <img
@@ -162,11 +166,11 @@ function FrameGallery({ jobId, throwingEvents, fps }) {
                                         className="w-full h-full object-cover"
                                     />
                                     {isEvent && (
-                                        <div className="absolute top-1 right-1 w-3 h-3 bg-error rounded-full shadow-sm"></div>
+                                        <div className="absolute top-1 right-1 w-2 h-2 sm:w-3 sm:h-3 bg-error rounded-full shadow-sm"></div>
                                     )}
                                     {isActive && (
                                         <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
-                                            <span className="material-symbols-outlined text-white text-sm drop-shadow">play_circle</span>
+                                            <span className="material-symbols-outlined text-white text-xs sm:text-sm drop-shadow">play_circle</span>
                                         </div>
                                     )}
                                 </button>
@@ -228,10 +232,10 @@ function FrameGallery({ jobId, throwingEvents, fps }) {
 
 // ── Main AnalysisReport component ─────────────────────────────────────────────
 export default function AnalysisReport({ data, jobId, onReset }) {
-    if (!data) return null;
-
     const reportRef = useRef(null);
     const { exporting, exportError, downloadServerPdf, downloadClientPdf } = usePdfExport();
+
+    if (!data) return null;
 
     const trackTimeline  = data.track_timeline  || [];
     const throwingEvents = data.throwing_events || [];
@@ -259,10 +263,10 @@ export default function AnalysisReport({ data, jobId, onReset }) {
     }
 
     return (
-        <div className="p-10 flex gap-8 flex-grow overflow-hidden min-h-0">
+        <div className="p-4 sm:p-6 xl:p-10 flex flex-col lg:flex-row gap-4 md:gap-6 xl:gap-8 flex-grow overflow-hidden min-h-0">
 
-            {/* Left sidebar */}
-            <section className="w-72 flex flex-col space-y-4 flex-shrink-0">
+            {/* Left sidebar — hidden on narrow screens, shown as top strip on md, full sidebar on lg+ */}
+            <section className="hidden lg:flex w-56 xl:w-72 flex-col space-y-4 flex-shrink-0">
                 <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-sm border border-outline-variant/5">
                     <h3 className="text-sm font-bold font-headline mb-4 flex items-center gap-2">
                         <span className="material-symbols-outlined text-primary">video_library</span>
@@ -305,14 +309,14 @@ export default function AnalysisReport({ data, jobId, onReset }) {
             </section>
 
             {/* Main scrollable content */}
-            <section ref={reportRef} className="flex-1 overflow-y-auto pr-2 space-y-6 pb-8 min-h-0">
+            <section ref={reportRef} className="flex-1 overflow-y-auto min-w-0 space-y-4 sm:space-y-6 pb-8 min-h-0">
 
                 {/* Report header */}
                 <div className="flex justify-between items-end flex-wrap gap-4">
                     <div>
                         <span className="text-[10px] font-bold text-primary px-3 py-1 bg-primary-container/30 rounded-full uppercase tracking-widest">System Generated Report</span>
-                        <h2 className="text-3xl font-extrabold font-headline mt-2 text-on-surface">Incident Semantic Analysis</h2>
-                        <p className="text-on-surface-variant mt-1 text-sm">Ref: {jobId} · {data.generated_at || 'Just now'}</p>
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold font-headline mt-2 text-on-surface">Incident Semantic Analysis</h2>
+                        <p className="text-on-surface-variant mt-1 text-xs sm:text-sm font-mono truncate max-w-[50vw]">{jobId.substring(0, 20)}… · {data.generated_at || 'Just now'}</p>
                     </div>
 
                     {/* Export buttons */}
@@ -356,7 +360,7 @@ export default function AnalysisReport({ data, jobId, onReset }) {
                 </div>
 
                 {/* Stat chips */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
                     {[
                         { label: 'Persons Detected', value: uniquePersons,      icon: 'person',     color: 'text-primary' },
                         { label: 'Trash Items',       value: uniqueTrash,        icon: 'delete',     color: 'text-error' },
