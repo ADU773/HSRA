@@ -1,5 +1,11 @@
 # 🗑️ TrashGuard — Hazardous Scene Recognition & Analytics (HSRA)
 
+# For running the Project Run:
+```
+./start_react.bat
+
+```
+
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white" />
   <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" />
