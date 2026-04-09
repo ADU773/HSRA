@@ -1,19 +1,20 @@
 """
-vlm_helper.py — CLIP zero-shot semantic verification + optional Gemini scene description.
+vlm_helper.py — 100% local CLIP-based scene verification and description.
 
-CLIP (openai/clip-vit-base-patch32) runs **fully locally** on GPU with no API key required.
-It verifies whether a frame contains a littering/throwing event via zero-shot classification.
+No API keys. No tuples. No external services.
 
-Gemini Vision (gemini-1.5-flash) provides rich natural-language descriptions when a
-GEMINI_API_KEY is available in backend/.env or the environment.
+How it works:
+  • CLIP (openai/clip-vit-base-patch32) encodes the video frame and a set of
+    plain-English candidate sentences per semantic axis.
+  • The highest-scoring sentence for each axis is selected by cosine similarity.
+  • The selected sentences are assembled into a coherent scene description.
 
-Get a free Gemini key at: https://aistudio.google.com/app/apikey
+Axes queried:
+  scene_type · human_activity · waste_visibility ·
+  vehicle_presence · incident_severity · time_of_day · crowd_density
 """
 
-import os
-import io
 import logging
-from pathlib import Path
 from typing import Dict, List, Optional
 
 import torch
@@ -21,11 +22,13 @@ from PIL import Image as PILImage
 
 logger = logging.getLogger(__name__)
 
-# ── Constants ─────────────────────────────────────────────────────────────────
+# ── Model config ───────────────────────────────────────────────────────────────
 
 CLIP_MODEL_ID = "openai/clip-vit-base-patch32"
 
-# Zero-shot labels used for littering verification
+
+# ── Littering verification labels ─────────────────────────────────────────────
+
 CLIP_LABELS: List[str] = [
     "a person throwing or littering trash in public",
     "a person dropping garbage or waste on the ground",
@@ -34,30 +37,95 @@ CLIP_LABELS: List[str] = [
     "garbage or trash lying on the ground",
 ]
 
-# Labels considered as "littering confirmed"
 LITTERING_LABELS = {
     "a person throwing or littering trash in public",
     "a person dropping garbage or waste on the ground",
 }
 
-CLIP_CONFIDENCE_THRESHOLD = 0.30   # minimum confidence to report a CLIP verdict
+CLIP_CONFIDENCE_THRESHOLD = 0.30
 
 
-# ── Device selection ──────────────────────────────────────────────────────────
+# ── Semantic axes — plain flat lists, no tuples ────────────────────────────────
+
+SCENE_TYPE = [
+    "a busy urban street with heavy foot traffic",
+    "a quiet residential road with few people",
+    "a public park or green area",
+    "a commercial shopping area or marketplace",
+    "a highway or fast-moving road with vehicles",
+    "an alley or narrow side street",
+    "a parking lot or vehicle loading area",
+    "an outdoor public space with benches or seating",
+]
+
+HUMAN_ACTIVITY = [
+    "a person actively throwing garbage out of a vehicle",
+    "a person bending down to drop trash on the ground",
+    "a person holding a bag and discarding waste",
+    "a person walking or running along the road",
+    "a group of people standing and talking",
+    "a person entering or exiting a vehicle",
+    "no people visible in the scene",
+    "a person on a bicycle or motorcycle",
+]
+
+WASTE_VISIBILITY = [
+    "large amounts of trash and garbage clearly visible on the ground",
+    "a single piece of litter or small garbage item on the ground",
+    "garbage bags or waste containers spilling onto the street",
+    "a plastic bag or food wrapper visible in the scene",
+    "no visible garbage or litter anywhere in the scene",
+    "scattered small debris across the road surface",
+    "a pile of waste or discarded objects near the roadside",
+]
+
+VEHICLE_PRESENCE = [
+    "multiple cars and trucks visible on the road",
+    "a single parked car on the side of the road",
+    "a moving vehicle passing through the scene",
+    "a motorcycle or scooter visible in the scene",
+    "a large truck or lorry present in the scene",
+    "no vehicles visible anywhere in the frame",
+    "a bus or public transit vehicle visible",
+]
+
+INCIDENT_SEVERITY = [
+    "a confirmed littering incident with a person and trash both clearly visible",
+    "a suspected littering event that requires further review",
+    "a minor waste disposal event with a small item dropped",
+    "a major illegal dumping incident with bulk waste left in public",
+    "no littering or waste-related activity apparent in this scene",
+]
+
+TIME_OF_DAY = [
+    "a bright sunny daytime outdoor scene",
+    "an overcast or cloudy daytime outdoor scene",
+    "an evening or dusk outdoor scene with fading light",
+    "a dark nighttime scene with artificial street lighting",
+    "a night scene lit primarily by vehicle headlights",
+]
+
+CROWD_DENSITY = [
+    "a very crowded area with many pedestrians",
+    "a moderately populated area with several people",
+    "a sparse area with only one or two people visible",
+    "a completely empty street with no people at all",
+]
+
+
+# ── Device selection ───────────────────────────────────────────────────────────
 
 def _get_device() -> str:
     if torch.cuda.is_available():
-        logger.info("[CLIP] CUDA GPU detected — running CLIP on GPU.")
+        logger.info("[CLIP] CUDA GPU detected — running on GPU.")
         return "cuda"
-    logger.info("[CLIP] No GPU detected — running CLIP on CPU.")
+    logger.info("[CLIP] No GPU detected — running on CPU.")
     return "cpu"
 
 
-# ── CLIP Verifier ─────────────────────────────────────────────────────────────
+# ── Singleton CLIP wrapper ─────────────────────────────────────────────────────
 
 class _CLIPVerifier:
-    """Singleton wrapper around CLIP for zero-shot frame verification."""
-
     _instance: Optional["_CLIPVerifier"] = None
 
     def __init__(self):
@@ -78,7 +146,6 @@ class _CLIPVerifier:
             return True
         if self._load_error:
             return False
-
         try:
             from transformers import CLIPProcessor, CLIPModel
 
@@ -88,75 +155,66 @@ class _CLIPVerifier:
                 torch_dtype=torch.float16 if self._device == "cuda" else torch.float32,
             ).to(self._device)
             self._model.eval()
-
             self._processor = CLIPProcessor.from_pretrained(CLIP_MODEL_ID)
             self._loaded = True
             logger.info(f"[CLIP] Ready on {self._device.upper()}.")
             return True
-
         except Exception as e:
             self._load_error = str(e)
             logger.error(f"[CLIP] Failed to load: {e}")
             return False
+
+    def _best_label(self, image: PILImage.Image, candidates: List[str]) -> tuple:
+        """
+        Score every candidate string against the image with CLIP.
+        Returns (best_label: str, best_prob: float).
+        """
+        inputs = self._processor(
+            text=candidates,
+            images=image,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+        )
+        inputs = {k: v.to(self._device) for k, v in inputs.items()}
+        with torch.inference_mode():
+            outputs = self._model(**inputs)
+        probs = outputs.logits_per_image.softmax(dim=1)[0].float().cpu().tolist()
+        best_idx = max(range(len(probs)), key=lambda i: probs[i])
+        return candidates[best_idx], probs[best_idx]
+
+    # ── Littering verification ─────────────────────────────────────────────
 
     def verify(
         self,
         pil_image: PILImage.Image,
         labels: Optional[List[str]] = None,
     ) -> Dict:
-        """
-        Run zero-shot CLIP classification on a PIL image.
-
-        Args:
-            pil_image: RGB PIL image (single frame).
-            labels:    Optional list of text labels. Defaults to CLIP_LABELS.
-
-        Returns:
-            dict with keys:
-              - label: str   — most probable label
-              - confidence: float — probability [0, 1]
-              - is_littering: bool
-              - all_scores: dict[label → probability]
-        """
         if not self._ensure_loaded():
-            return _clip_error_result(self._load_error or "CLIP not available")
+            return _error_result(self._load_error or "CLIP not available")
 
-        if labels is None:
-            labels = CLIP_LABELS
+        candidates = labels if labels else CLIP_LABELS
 
         try:
             image = pil_image.convert("RGB")
-
-            # Tokenise text + preprocess image
             inputs = self._processor(
-                text=labels,
+                text=candidates,
                 images=image,
                 return_tensors="pt",
                 padding=True,
             )
-            # Move all tensors to device
             inputs = {k: v.to(self._device) for k, v in inputs.items()}
-
             with torch.inference_mode():
                 outputs = self._model(**inputs)
 
-            logits = outputs.logits_per_image   # (1, num_labels)
-            probs = logits.softmax(dim=1)[0].float().cpu().tolist()
-
-            all_scores = {label: round(prob, 4) for label, prob in zip(labels, probs)}
+            probs = outputs.logits_per_image.softmax(dim=1)[0].float().cpu().tolist()
+            all_scores = {lbl: round(p, 4) for lbl, p in zip(candidates, probs)}
             best_idx = max(range(len(probs)), key=lambda i: probs[i])
-            best_label = labels[best_idx]
+            best_label = candidates[best_idx]
             best_conf = probs[best_idx]
+            is_littering = best_label in LITTERING_LABELS and best_conf >= CLIP_CONFIDENCE_THRESHOLD
 
-            is_littering = (
-                best_label in LITTERING_LABELS
-                and best_conf >= CLIP_CONFIDENCE_THRESHOLD
-            )
-
-            logger.debug(
-                f"[CLIP] Best: '{best_label[:60]}' @ {best_conf:.2%} "
-                f"(littering={is_littering})"
-            )
+            logger.debug(f"[CLIP] '{best_label[:60]}' @ {best_conf:.2%} littering={is_littering}")
 
             return {
                 "label": best_label,
@@ -166,175 +224,93 @@ class _CLIPVerifier:
                 "device": self._device,
                 "error": None,
             }
-
         except Exception as e:
             logger.error(f"[CLIP] verify() failed: {e}")
-            return _clip_error_result(str(e))
+            return _error_result(str(e))
+
+    # ── Rich scene description ─────────────────────────────────────────────
+
+    def describe(self, pil_image: PILImage.Image) -> str:
+        """
+        Generate a detailed, natural-language scene description using CLIP only.
+
+        Queries 7 semantic axes with plain string lists, picks the best-matching
+        label for each, and assembles them into a readable paragraph.
+        No API, no tuples, no external dependencies.
+        """
+        if not self._ensure_loaded():
+            return "[CLIP unavailable] Could not load the CLIP model for scene description."
+
+        try:
+            image = pil_image.convert("RGB")
+
+            scene,    scene_conf    = self._best_label(image, SCENE_TYPE)
+            activity, activity_conf = self._best_label(image, HUMAN_ACTIVITY)
+            waste,    waste_conf    = self._best_label(image, WASTE_VISIBILITY)
+            vehicle,  vehicle_conf  = self._best_label(image, VEHICLE_PRESENCE)
+            severity, severity_conf = self._best_label(image, INCIDENT_SEVERITY)
+            time_,    time_conf     = self._best_label(image, TIME_OF_DAY)
+            crowd,    crowd_conf    = self._best_label(image, CROWD_DENSITY)
+
+            # Build natural sentences from the winning labels
+            description = (
+                f"Scene: {scene}, {time_}, with {crowd}. "
+                f"Activity observed: {activity}. "
+                f"Waste status: {waste}. "
+                f"Vehicles: {vehicle}. "
+                f"Incident assessment: {severity}. "
+                f"[CLIP confidence — scene:{scene_conf:.0%} "
+                f"activity:{activity_conf:.0%} waste:{waste_conf:.0%} "
+                f"severity:{severity_conf:.0%}]"
+            )
+
+            logger.debug(f"[CLIP-describe] {description[:120]}…")
+            return description
+
+        except Exception as e:
+            logger.error(f"[CLIP] describe() failed: {e}")
+            return f"[CLIP description error: {e}]"
 
     def is_available(self) -> bool:
         return self._ensure_loaded()
 
 
-def _clip_error_result(error_msg: str) -> Dict:
-    return {
-        "label": "unknown",
-        "confidence": 0.0,
-        "is_littering": False,
-        "all_scores": {},
-        "device": "none",
-        "error": error_msg,
-    }
+def _error_result(msg: str) -> Dict:
+    return {"label": "unknown", "confidence": 0.0, "is_littering": False,
+            "all_scores": {}, "device": "none", "error": msg}
 
 
-# ── Public CLIP API ───────────────────────────────────────────────────────────
+# ── Public functions ───────────────────────────────────────────────────────────
 
 def clip_verify_frame(
     pil_image: PILImage.Image,
     labels: Optional[List[str]] = None,
 ) -> Dict:
-    """
-    Verify whether a frame contains a littering event using CLIP zero-shot classification.
-
-    Args:
-        pil_image: PIL RGB image.
-        labels:    Optional custom label list (defaults to CLIP_LABELS).
-
-    Returns:
-        dict {label, confidence, is_littering, all_scores, device, error}
-    """
+    """Zero-shot CLIP littering verification. Returns {label, confidence, is_littering, …}"""
     return _CLIPVerifier.get().verify(pil_image, labels)
-
-
-def is_clip_available() -> bool:
-    """Return True if CLIP model is loaded and ready."""
-    return _CLIPVerifier.get().is_available()
-
-
-def get_clip_labels() -> List[str]:
-    """Return the default zero-shot label set."""
-    return list(CLIP_LABELS)
-
-
-# ── Gemini Vision (optional rich description) ─────────────────────────────────
-
-_BACKEND_DIR = Path(__file__).resolve().parent
-
-
-def _get_api_key() -> Optional[str]:
-    """Return Gemini API key from env var or .env file next to this file."""
-    key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if key:
-        return key
-
-    env_file = _BACKEND_DIR / ".env"
-    if env_file.exists():
-        for line in env_file.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if line.startswith("GEMINI_API_KEY="):
-                key = line.split("=", 1)[1].strip().strip('"').strip("'")
-                if key:
-                    os.environ["GEMINI_API_KEY"] = key
-                    return key
-    return None
-
-
-_gemini_client = None
-_gemini_available = False
-_gemini_load_attempted = False
-_GEMINI_MODEL = "gemini-1.5-flash"
-
-
-def _load_gemini() -> bool:
-    global _gemini_client, _gemini_available, _gemini_load_attempted
-
-    if _gemini_load_attempted:
-        return _gemini_available
-
-    _gemini_load_attempted = True
-
-    api_key = _get_api_key()
-    if not api_key:
-        logger.warning(
-            "[VLM] GEMINI_API_KEY not set. "
-            "Add it to backend/.env to enable rich scene descriptions. "
-            "Get a free key at https://aistudio.google.com/app/apikey"
-        )
-        _gemini_available = False
-        return False
-
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        _gemini_client = genai.GenerativeModel(_GEMINI_MODEL)
-        _gemini_available = True
-        logger.info(f"[VLM] Gemini Vision ready (model: {_GEMINI_MODEL})")
-    except Exception as e:
-        logger.warning(f"[VLM] Failed to initialise Gemini: {e}")
-        _gemini_available = False
-
-    return _gemini_available
-
-
-DEFAULT_PROMPT = (
-    "You are an urban security AI assistant. Analyse this video frame and provide "
-    "a concise, factual description of the scene. Focus on: "
-    "1) Any person who appears to be throwing, dropping, or littering trash. "
-    "2) Any visible waste, garbage, or foreign objects on the ground or in the air. "
-    "3) General scene context (location type, number of people, vehicles). "
-    "Keep the description under 3 sentences and be specific."
-)
 
 
 def describe_frame(
     pil_image: PILImage.Image,
-    prompt: str = DEFAULT_PROMPT,
+    prompt: str = "",          # kept for API compatibility; not used by CLIP
 ) -> str:
     """
-    Generate a natural-language description using Gemini Vision (optional).
-    Falls back to a CLIP-derived summary if Gemini is unavailable.
+    Generate a rich scene description using CLIP across 7 semantic axes.
+    Fully local — no API keys, no external services.
     """
-    if _load_gemini():
-        try:
-            import google.generativeai as genai
+    return _CLIPVerifier.get().describe(pil_image)
 
-            img = pil_image.convert("RGB")
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=85)
-            buf.seek(0)
 
-            image_part = {"mime_type": "image/jpeg", "data": buf.read()}
-
-            response = _gemini_client.generate_content(
-                [prompt, image_part],
-                generation_config=genai.types.GenerationConfig(
-                    max_output_tokens=256,
-                    temperature=0.3,
-                ),
-            )
-
-            text = response.text.strip() if response.text else ""
-            if text:
-                logger.debug(f"[VLM] Gemini description: {text[:80]}…")
-                return text
-
-        except Exception as e:
-            logger.error(f"[VLM] describe_frame failed: {e}")
-
-    # Fallback: use CLIP for a short structured summary
-    result = clip_verify_frame(pil_image)
-    if result.get("error"):
-        return (
-            "[VLM unavailable] Set GEMINI_API_KEY in backend/.env for rich descriptions. "
-            "Get a free key at https://aistudio.google.com/app/apikey"
-        )
-    conf_pct = round(result["confidence"] * 100, 1)
-    return (
-        f"[CLIP analysis] Most likely scene: \"{result['label']}\" "
-        f"(confidence {conf_pct}%). "
-        f"{'Littering behaviour detected.' if result['is_littering'] else 'No confirmed littering detected.'}"
-    )
+def is_clip_available() -> bool:
+    """Return True if the CLIP model is loaded and ready."""
+    return _CLIPVerifier.get().is_available()
 
 
 def is_available() -> bool:
-    """Return True if Gemini VLM is configured and reachable."""
-    return _load_gemini()
+    """Backward-compatible alias — returns CLIP availability (Gemini removed)."""
+    return _CLIPVerifier.get().is_available()
+
+
+def get_clip_labels() -> List[str]:
+    """Return the default zero-shot littering label set."""
+    return list(CLIP_LABELS)
