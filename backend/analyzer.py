@@ -38,6 +38,8 @@ NEW_TRASH_MAX_AGE = 30  # frames
 VLM_INTERVAL_SEC = 2.0
 # How many frames to skip between full detections (for speed; set 1 = every frame)
 FRAME_SKIP = 1
+# Always save an annotated frame at VLM-sample points so the PDF gallery has images
+SAVE_VLM_FRAMES = True
 
 
 # ── Data structures ──────────────────────────────────────────────────────────
@@ -219,7 +221,7 @@ def analyze_video(
     video_path: str,
     use_vlm: bool = True,
     progress_callback: Optional[Callable[[int, int, str], None]] = None,
-    annotated_frame_interval: int = 30,
+    annotated_frame_interval: int = 15,
 ) -> AnalysisResult:
     """
     Analyse a video file for trash-throwing incidents.
@@ -393,6 +395,11 @@ def analyze_video(
                     timestamp=timestamp,
                     description=desc,
                 ))
+                # Always save this frame so the PDF gallery can embed it
+                if SAVE_VLM_FRAMES and frame_idx not in result.annotated_frames:
+                    result.annotated_frames[frame_idx] = _draw_boxes(
+                        frame, frame_detections, events_this_frame
+                    )
             except Exception as e:
                 logger.warning(f"[Analyzer] VLM failed at frame {frame_idx}: {e}")
 

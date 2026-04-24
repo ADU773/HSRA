@@ -1,12 +1,12 @@
 """
 pdf_report.py — Server-side PDF report generation using ReportLab.
 
-Produces a clean, text-based, paginated professional report with:
+Produces a professional, paginated report with embedded annotated frame images:
   - Cover page with video metadata and summary statistics
   - Executive summary paragraph
   - Section 1: Incident Summary Table (all events at a glance)
-  - Section 2: Detailed Incident Reports (per-event, with CLIP & VLM data)
-  - Section 3: VLM Scene Description Timeline
+  - Section 2: Detailed Incident Reports (per-event with frame image + VLM description)
+  - Section 3: VLM Scene Description Gallery (frame images + descriptions)
   - Section 4: Tracked Objects Registry
   - Section 5: Detection Class Breakdown
 """
@@ -25,22 +25,24 @@ from reportlab.platypus import (
 )
 
 # ── Colour palette ─────────────────────────────────────────────────────────────
-C_PRIMARY = colors.HexColor("#006978")
+C_PRIMARY       = colors.HexColor("#006978")
 C_PRIMARY_LIGHT = colors.HexColor("#E0F4F7")
-C_ERROR   = colors.HexColor("#B3261E")
-C_ERROR_LIGHT = colors.HexColor("#FDE8E8")
-C_ORANGE  = colors.HexColor("#C25400")
-C_ORANGE_LIGHT = colors.HexColor("#FFF0E5")
-C_GREEN   = colors.HexColor("#16A34A")
-C_INDIGO  = colors.HexColor("#4338CA")
-C_INDIGO_LIGHT = colors.HexColor("#EEF2FF")
-C_SURFACE = colors.HexColor("#F8FAFC")
-C_ROW_ALT = colors.HexColor("#F0F9FA")
-C_BORDER  = colors.HexColor("#CBD5E1")
-C_BORDER_DARK = colors.HexColor("#94A3B8")
-C_TEXT    = colors.HexColor("#1E293B")
-C_MUTED   = colors.HexColor("#64748B")
-C_WHITE   = colors.white
+C_ERROR         = colors.HexColor("#B3261E")
+C_ERROR_LIGHT   = colors.HexColor("#FDE8E8")
+C_ORANGE        = colors.HexColor("#C25400")
+C_ORANGE_LIGHT  = colors.HexColor("#FFF0E5")
+C_GREEN         = colors.HexColor("#16A34A")
+C_INDIGO        = colors.HexColor("#4338CA")
+C_INDIGO_LIGHT  = colors.HexColor("#EEF2FF")
+C_SURFACE       = colors.HexColor("#F8FAFC")
+C_ROW_ALT       = colors.HexColor("#F0F9FA")
+C_BORDER        = colors.HexColor("#CBD5E1")
+C_BORDER_DARK   = colors.HexColor("#94A3B8")
+C_TEXT          = colors.HexColor("#1E293B")
+C_MUTED         = colors.HexColor("#64748B")
+C_WHITE         = colors.white
+C_DARK_BG       = colors.HexColor("#0A1628")
+C_VLM_BG        = colors.HexColor("#0D1F1A")
 
 
 # ── Format helpers ─────────────────────────────────────────────────────────────
@@ -91,10 +93,35 @@ def _nearest_frame(frame_idx, frames: dict):
     """Return the numpy array of the nearest annotated frame to frame_idx."""
     if not frames:
         return None
+    # frames keys may be int; normalise
+    int_frames = {int(k): v for k, v in frames.items()}
     idx = int(frame_idx) if isinstance(frame_idx, (int, float)) else 0
-    if idx in frames:
-        return frames[idx]
-    return frames[min(frames.keys(), key=lambda k: abs(k - idx))]
+    if idx in int_frames:
+        return int_frames[idx]
+    return int_frames[min(int_frames.keys(), key=lambda k: abs(k - idx))]
+
+
+def _frame_image_block(frame_arr, W, max_h_mm, caption_text, sev_color=None):
+    """Build a centred image wrapper + caption list."""
+    frame_img = _arr_to_rl_image(frame_arr, W / mm, max_h_mm)
+    if frame_img is None:
+        return []
+    border_color = sev_color if sev_color else C_BORDER
+    img_wrapper = Table([[frame_img]], colWidths=[W])
+    img_wrapper.setStyle(TableStyle([
+        ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("BOX",           (0, 0), (-1, -1), 1.5, border_color),
+        ("BACKGROUND",    (0, 0), (-1, -1), C_DARK_BG),
+        ("TOPPADDING",    (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    caption = Paragraph(
+        caption_text,
+        ParagraphStyle("cap", fontSize=7, textColor=C_MUTED,
+                       fontName="Helvetica", alignment=TA_CENTER, spaceBefore=3),
+    )
+    return [Spacer(1, 3 * mm), img_wrapper, caption, Spacer(1, 3 * mm)]
 
 
 # ── Style builder ──────────────────────────────────────────────────────────────
@@ -129,6 +156,9 @@ def _styles():
         # Monospace / code
         "mono":       ParagraphStyle("mono",      fontSize=8,  textColor=C_TEXT,
                                       fontName="Courier",     leading=12),
+        "mono_vlm":   ParagraphStyle("mono_vlm",  fontSize=8,  textColor=C_TEXT,
+                                      fontName="Courier",     leading=13,
+                                      alignment=TA_JUSTIFY),
         # Table cell styles
         "cell":       ParagraphStyle("cell",      fontSize=8,  textColor=C_TEXT,
                                       fontName="Helvetica",   leading=12),
@@ -153,6 +183,10 @@ def _styles():
                                       fontName="Helvetica-Bold"),
         "badge_ind":  ParagraphStyle("badge_ind", fontSize=8,  textColor=C_INDIGO,
                                       fontName="Helvetica-Bold"),
+        # VLM description body
+        "vlm_desc":   ParagraphStyle("vlm_desc",  fontSize=8.5, textColor=C_TEXT,
+                                      fontName="Helvetica",   leading=13,
+                                      alignment=TA_JUSTIFY),
         # Footer
         "foot":       ParagraphStyle("foot",      fontSize=7,  textColor=C_MUTED,
                                       fontName="Helvetica",
@@ -223,8 +257,7 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
 
     Args:
         report_data:      Enriched JSON dict from generate_report_json().
-        annotated_frames: dict[frame_idx → np.ndarray (BGR)] — used to embed
-                          the detection frame image inside each incident card.
+        annotated_frames: dict[frame_idx → np.ndarray (BGR)] from the analysis job.
 
     Returns: PDF bytes.
     """
@@ -239,6 +272,7 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
 
     st    = _styles()
     W     = A4[0] - 44 * mm      # usable width ≈ 167 mm
+    frames_dict = annotated_frames or {}
     story = []
 
     # Pull data
@@ -260,6 +294,15 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
         "a person throwing or littering trash in public",
         "a person dropping garbage or waste on the ground",
     }
+
+    # Pre-build VLM lookup: for each event, find the nearest VLM description
+    def _nearest_vlm_desc(event_ts: float) -> str:
+        if not vlm_tl:
+            return ""
+        nearest = min(vlm_tl, key=lambda v: abs(v.get("timestamp", 0) - event_ts))
+        if abs(nearest.get("timestamp", 0) - event_ts) <= 15:  # within 15 seconds
+            return nearest.get("description", "")
+        return ""
 
     # ═══════════════════════════════════════════════════════════════════
     # COVER PAGE
@@ -316,7 +359,6 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
     # ═══════════════════════════════════════════════════════════════════
     story += _section("Executive Summary", st)
 
-    # Build a natural-language summary paragraph
     clip_rate = f"{round(clip_cnt / t_events * 100)}%" if t_events > 0 else "N/A"
     summary_text = (
         f"This report presents the results of an automated littering-detection analysis "
@@ -331,12 +373,12 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
         f"The system flagged <b>{t_events} littering or throwing event(s)</b>, "
         f"of which <b>{clip_cnt} event(s)</b> were independently confirmed as littering "
         f"behaviour by the CLIP classifier (confirmation rate: {clip_rate}). "
-        f"Refer to the Incident Log (Section 2) for full per-event details."
+        f"Each incident below includes an annotated detection frame and the nearest "
+        f"VLM scene description for full context."
     )
     story.append(Paragraph(summary_text, st["body"]))
     story.append(Spacer(1, 4 * mm))
 
-    # Findings highlights box
     if t_events > 0:
         severity = "HIGH" if clip_cnt > 0 else "MEDIUM"
         sev_color = C_ERROR if clip_cnt > 0 else C_ORANGE
@@ -406,7 +448,6 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
 
         t1 = Table(rows1, colWidths=cw1, repeatRows=1)
         ts1 = _base_table_style()
-        # Colour YES rows
         for ri, evt in enumerate(events, 1):
             if evt.get("clip_is_littering"):
                 ts1.append(("BACKGROUND", (0, ri), (-1, ri), C_ERROR_LIGHT))
@@ -416,12 +457,13 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
     story.append(PageBreak())
 
     # ═══════════════════════════════════════════════════════════════════
-    # SECTION 2: DETAILED INCIDENT REPORTS
+    # SECTION 2: DETAILED INCIDENT REPORTS WITH FRAME IMAGES
     # ═══════════════════════════════════════════════════════════════════
     story += _section("Section 2 — Detailed Incident Reports", st)
     story.append(Paragraph(
         "Each entry below provides the full analysis for one detected incident, "
-        "including scene description, CLIP zero-shot classification scores, "
+        "including the annotated detection frame image showing exact object positions, "
+        "the nearest VLM scene description, CLIP zero-shot classification scores, "
         "and all tracking identifiers.",
         st["body"]
     ))
@@ -441,6 +483,9 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
             c_pct  = round(evt.get("clip_confidence", 0) * 100, 1)
             c_lit  = evt.get("clip_is_littering", False)
             c_scrs = evt.get("clip_all_scores", {})
+
+            # Find nearest VLM description for this event
+            vlm_desc = _nearest_vlm_desc(ts_s)
 
             # Incident heading
             sev_bg  = C_ERROR_LIGHT if c_lit else (C_ORANGE_LIGHT if c_lbl else C_PRIMARY_LIGHT)
@@ -499,7 +544,6 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
                 ("LEFTPADDING",   (0, 0), (-1, -1), 8),
             ]
-            # Highlight littering row
             if c_lbl:
                 lit_r = len(attr_rows) - 1
                 at_sty.append(("TEXTCOLOR",  (1, lit_r), (1, lit_r),
@@ -507,102 +551,108 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
                 at_sty.append(("FONTNAME",   (1, lit_r), (1, lit_r), "Helvetica-Bold"))
             at.setStyle(TableStyle(at_sty))
 
-            # ── Annotated frame image ──────────────────────────────────────
-            # Fetch the nearest saved annotated frame for this event and embed it.
-            frames_dict = annotated_frames or {}
-            frame_arr   = _nearest_frame(fnum, frames_dict)
-            frame_img   = _arr_to_rl_image(frame_arr, W / mm, 90)  # max 90 mm tall
+            # ── Annotated frame image ──────────────────────────────────────────
+            frame_arr  = _nearest_frame(fnum, frames_dict)
+            caption    = (
+                f"Detection Frame #{fnum}  ·  {ts_fmt}  ·  "
+                f"Person #{pid} / Waste #{tid}  ·  "
+                f"{'⚠ LITTERING CONFIRMED' if c_lit else 'Flagged event'}"
+            )
+            frame_block = _frame_image_block(frame_arr, W, 95, caption, sev_clr)
 
-            if frame_img is not None:
-                frame_caption = Paragraph(
-                    f"Figure: Annotated detection frame  ·  "
-                    f"Frame #{fnum}  ·  {ts_fmt}  ·  "
-                    f"Person #{pid}  /  Waste #{tid}",
-                    ParagraphStyle(f"fc{i}", fontSize=7, textColor=C_MUTED,
-                                   fontName="Helvetica", alignment=TA_CENTER,
-                                   spaceBefore=2),
-                )
-                # Centre image in a full-width wrapper table
-                img_wrapper = Table(
-                    [[frame_img]],
-                    colWidths=[W],
-                )
-                img_wrapper.setStyle(TableStyle([
-                    ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
-                    ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-                    ("BOX",           (0, 0), (-1, -1), 0.5, C_BORDER),
-                    ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor("#0A1628")),
-                    ("TOPPADDING",    (0, 0), (-1, -1), 4),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ]))
-                frame_block = [Spacer(1, 3 * mm), img_wrapper,
-                               frame_caption, Spacer(1, 3 * mm)]
-            else:
-                frame_block = [Spacer(1, 3 * mm)]
+            # ── VLM description (nearest snapshot) ────────────────────────────
             scene_block = []
-            if desc:
+            if vlm_desc:
+                scene_block = [
+                    Paragraph("VLM Scene Description (nearest snapshot)", st["h3"]),
+                    Paragraph(vlm_desc, st["vlm_desc"]),
+                    Spacer(1, 3 * mm),
+                ]
+            elif desc:
+                # Fall back to the auto-generated event description
                 scene_block = [
                     Paragraph("Scene Description", st["h3"]),
                     Paragraph(desc, st["body"]),
                     Spacer(1, 3 * mm),
                 ]
 
-            # CLIP score breakdown
+            # ── CLIP / VLM score breakdown ───────────────────────────────────
             clip_block = []
             if c_scrs:
-                score_rows = sorted(c_scrs.items(), key=lambda x: -x[1])
-                clip_hdr   = [
-                    Paragraph("Classification Label", st["th"]),
-                    Paragraph("Score",  st["th"]),
-                    Paragraph("Result", st["th"]),
-                ]
-                clip_data  = [clip_hdr]
-                for lbl, scr in score_rows:
-                    pct_v   = round(scr * 100, 1)
-                    is_lit  = lbl in LIT_LABELS
-                    l_style = st["cell_err"] if (is_lit and pct_v > 30) else st["cell_muted"]
-                    r_style = st["cell_err"] if (is_lit and pct_v > 30) else st["cell_ok"]
-                    result  = "Littering" if is_lit else "Non-littering"
-                    clip_data.append([
-                        Paragraph(_trunc(lbl, 60), l_style),
-                        Paragraph(f"{pct_v}%",     l_style),
-                        Paragraph(result,           r_style),
-                    ])
-                ct = Table(clip_data, colWidths=[W - 42 * mm, 18 * mm, 24 * mm],
-                           repeatRows=1)
-                ct_sty = _base_table_style(C_INDIGO)
-                for ri, (lbl, scr) in enumerate(score_rows, 1):
-                    if lbl in LIT_LABELS:
-                        ct_sty.append(("BACKGROUND", (0, ri), (-1, ri), C_ERROR_LIGHT))
-                ct.setStyle(TableStyle(ct_sty))
+                # Determine whether scores are numeric (CLIP) or text (VLM)
+                # Use try/except so numpy types, strings, etc. never crash this
+                try:
+                    _numeric_scores = {k: float(v) for k, v in c_scrs.items()}
+                    _all_numeric = True
+                except (TypeError, ValueError):
+                    _all_numeric = False
 
-                clip_block = [
-                    Paragraph("CLIP Zero-Shot Classification Scores", st["h3"]),
-                    Paragraph(
-                        "The following scores represent the model's confidence across "
-                        "all candidate scene labels:",
-                        st["body_l"]),
-                    Spacer(1, 2 * mm),
-                    ct,
-                    Spacer(1, 3 * mm),
-                ]
+                if _all_numeric:
+                    score_rows = sorted(c_scrs.items(), key=lambda x: -float(x[1]))
+                    clip_hdr   = [
+                        Paragraph("Classification Label", st["th"]),
+                        Paragraph("Score",  st["th"]),
+                        Paragraph("Result", st["th"]),
+                    ]
+                    clip_data  = [clip_hdr]
+                    for lbl, scr in score_rows:
+                        pct_v   = round(float(scr) * 100, 1)
+                        is_lit  = lbl in LIT_LABELS
+                        l_style = st["cell_err"] if (is_lit and pct_v > 30) else st["cell_muted"]
+                        r_style = st["cell_err"] if (is_lit and pct_v > 30) else st["cell_ok"]
+                        result  = "Littering" if is_lit else "Non-littering"
+                        clip_data.append([
+                            Paragraph(_trunc(lbl, 60), l_style),
+                            Paragraph(f"{pct_v}%",     l_style),
+                            Paragraph(result,           r_style),
+                        ])
+                    ct = Table(clip_data, colWidths=[W - 42 * mm, 18 * mm, 24 * mm],
+                               repeatRows=1)
+                    ct_sty = _base_table_style(C_INDIGO)
+                    for ri, (lbl, scr) in enumerate(score_rows, 1):
+                        if lbl in LIT_LABELS:
+                            ct_sty.append(("BACKGROUND", (0, ri), (-1, ri), C_ERROR_LIGHT))
+                    ct.setStyle(TableStyle(ct_sty))
+                    clip_block = [
+                        Paragraph("CLIP Zero-Shot Classification Scores", st["h3"]),
+                        Paragraph(
+                            "The following scores represent the model's confidence across "
+                            "all candidate scene labels:",
+                            st["body_l"]),
+                        Spacer(1, 2 * mm),
+                        ct,
+                        Spacer(1, 3 * mm),
+                    ]
+                else:
+                    # VLM returns text answers — display as labelled paragraphs
+                    vlm_score_items = [
+                        Paragraph("VLM Verification Output", st["h3"]),
+                    ]
+                    for lbl, val in c_scrs.items():
+                        vlm_score_items.append(
+                            Paragraph(f"<b>{_trunc(lbl, 40)}:</b> {_trunc(str(val), 200)}",
+                                      st["vlm_desc"])
+                        )
+                    vlm_score_items.append(Spacer(1, 3 * mm))
+                    clip_block = vlm_score_items
 
             story.append(KeepTogether([ihdr, Spacer(1, 3 * mm), at]))
             story.extend(frame_block)
             story.extend(scene_block + clip_block)
-            story.append(Spacer(1, 8 * mm))
+            story.append(_thin_rule())
+            story.append(Spacer(1, 6 * mm))
 
     story.append(PageBreak())
 
     # ═══════════════════════════════════════════════════════════════════
-    # SECTION 3: VLM SCENE DESCRIPTION TIMELINE
+    # SECTION 3: VLM SCENE DESCRIPTION GALLERY
     # ═══════════════════════════════════════════════════════════════════
-    story += _section("Section 3 — VLM Scene Description Timeline", st)
+    story += _section("Section 3 — VLM Scene Description Gallery", st)
     story.append(Paragraph(
-        "The Vision-Language Model (VLM) was sampled at regular intervals "
-        "throughout the video to produce natural-language descriptions of the scene. "
-        "Each entry is cross-referenced with the nearest detected incident, "
-        "where applicable.",
+        "The Vision-Language Model (VLM) was sampled at regular intervals throughout "
+        "the video to produce natural-language descriptions of the scene. "
+        "Each entry below shows the annotated detection frame image at that moment "
+        "alongside the VLM's description and any active objects.",
         st["body"]
     ))
     story.append(Spacer(1, 4 * mm))
@@ -610,47 +660,102 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
     if not vlm_tl:
         story.append(Paragraph("No VLM descriptions were generated.", st["body"]))
     else:
-        vlm_hdr = [
-            Paragraph("Timestamp",       st["th"]),
-            Paragraph("Frame #",         st["th"]),
-            Paragraph("Active Objects",  st["th"]),
-            Paragraph("Scene Description", st["th"]),
-            Paragraph("Nearest Event",   st["th"]),
-        ]
-        vlm_cw = [22 * mm, 14 * mm, 28 * mm, None, 22 * mm]
-        vlm_cw[3] = W - sum(c for c in vlm_cw if c)
+        for vi, vd in enumerate(vlm_tl, 1):
+            ts_str    = vd.get("time_formatted", _fmt_ts(vd.get("timestamp", 0)))
+            vfnum     = vd.get("frame_idx", 0)
+            desc_v    = vd.get("description", "—")
+            active    = vd.get("active_objects", [])
+            near_evt  = vd.get("nearest_event")
 
-        vlm_rows = [vlm_hdr]
-        for vd in vlm_tl:
-            ts_str  = vd.get("time_formatted", _fmt_ts(vd.get("timestamp", 0)))
-            fnum    = vd.get("frame_idx", "—")
-            desc_v  = vd.get("description", "—")
-            active  = vd.get("active_objects", [])
-            near    = vd.get("nearest_event")
-
+            # Object summary
             obj_grp: dict = {}
             for o in active:
                 cls = o.get("class_name", "?")
                 obj_grp[cls] = obj_grp.get(cls, 0) + 1
-            obj_str = "\n".join(f"{n}× {c}" for c, n in obj_grp.items()) or "—"
+            obj_str = "  |  ".join(f"{n}× {c}" for c, n in sorted(obj_grp.items())) or "No objects detected"
 
-            near_txt = "—"
-            if near:
-                ne_ts  = near.get("time_formatted", _fmt_ts(near.get("timestamp", 0)))
-                ne_lit = near.get("clip_is_littering", False)
-                near_txt = f"⚠ {ne_ts}" if ne_lit else ne_ts
+            # Near event badge text
+            near_txt = ""
+            if near_evt:
+                ne_ts  = near_evt.get("time_formatted", _fmt_ts(near_evt.get("timestamp", 0)))
+                ne_lit = near_evt.get("clip_is_littering", False)
+                near_txt = f"  ⚠ NEAREST EVENT: {ne_ts}{'  — LITTERING CONFIRMED' if ne_lit else ''}"
 
-            vlm_rows.append([
-                Paragraph(ts_str,              st["cell_b"]),
-                Paragraph(str(fnum),           st["cell"]),
-                Paragraph(obj_str,             st["cell_muted"]),
-                Paragraph(_trunc(desc_v, 180), st["mono"]),
-                Paragraph(near_txt,            st["cell_err"] if "⚠" in near_txt else st["cell"]),
-            ])
+            # VLM snapshot header
+            snap_hdr_color = C_ERROR if (near_evt and near_evt.get("clip_is_littering")) else C_PRIMARY
+            snap_hdr_bg    = C_ERROR_LIGHT if (near_evt and near_evt.get("clip_is_littering")) else C_PRIMARY_LIGHT
 
-        tv = Table(vlm_rows, colWidths=vlm_cw, repeatRows=1)
-        tv.setStyle(TableStyle(_base_table_style()))
-        story.append(tv)
+            snap_hdr_data = [[
+                Paragraph(
+                    f"Snapshot #{vi}  ·  {ts_str}  ·  Frame #{vfnum}",
+                    ParagraphStyle(f"sh{vi}", fontSize=9, fontName="Helvetica-Bold",
+                                   textColor=snap_hdr_color)),
+                Paragraph(
+                    near_txt if near_txt else f"Active: {obj_str}",
+                    ParagraphStyle(f"shd{vi}", fontSize=7.5, fontName="Helvetica",
+                                   textColor=snap_hdr_color, alignment=TA_RIGHT)),
+            ]]
+            snap_hdr = Table(snap_hdr_data, colWidths=[W * 0.5, W * 0.5])
+            snap_hdr.setStyle(TableStyle([
+                ("BACKGROUND",    (0, 0), (-1, -1), snap_hdr_bg),
+                ("BOX",           (0, 0), (-1, -1), 0.5, snap_hdr_color),
+                ("TOPPADDING",    (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
+                ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+            ]))
+
+            # Annotated frame for this VLM snapshot
+            vfram_arr  = _nearest_frame(vfnum, frames_dict)
+            vcaption   = (
+                f"Frame #{vfnum}  ·  {ts_str}  ·  "
+                f"Objects: {obj_str}"
+                + (f"  ·  {near_txt.strip()}" if near_txt else "")
+            )
+            vframe_block = _frame_image_block(vfram_arr, W, 80, vcaption, snap_hdr_color)
+
+            # Description text
+            desc_block = [
+                Paragraph("Scene Description", st["h3"]),
+                Paragraph(desc_v, st["vlm_desc"]),
+            ]
+
+            # Active objects table (compact)
+            obj_block = []
+            if obj_grp:
+                obj_rows = [[
+                    Paragraph("Object Class", st["th"]),
+                    Paragraph("Count",        st["th"]),
+                    Paragraph("Track IDs",    st["th"]),
+                ]]
+                cls_track_map: dict = {}
+                for o in active:
+                    cls = o.get("class_name", "?")
+                    tid = o.get("track_id", "?")
+                    cls_track_map.setdefault(cls, []).append(f"#{tid}")
+                for cls, ids in sorted(cls_track_map.items()):
+                    is_trash = cls not in {"person","car","truck","bus","bicycle","motorcycle"}
+                    cls_style = st["cell_err"] if is_trash else (st["cell_ind"] if cls == "person" else st["cell"])
+                    obj_rows.append([
+                        Paragraph(cls, cls_style),
+                        Paragraph(str(len(ids)), st["cell_b"]),
+                        Paragraph(", ".join(ids[:8]) + ("…" if len(ids) > 8 else ""), st["cell_muted"]),
+                    ])
+                ot = Table(obj_rows, colWidths=[40*mm, 16*mm, W-56*mm], repeatRows=1)
+                ot.setStyle(TableStyle(_base_table_style(C_PRIMARY)))
+                obj_block = [
+                    Spacer(1, 2 * mm),
+                    Paragraph("Active Objects at This Timestamp", st["h3"]),
+                    ot,
+                ]
+
+            story.append(KeepTogether([snap_hdr]))
+            story.extend(vframe_block)
+            story.extend(desc_block)
+            story.extend(obj_block)
+            story.append(Spacer(1, 6 * mm))
+            story.append(_thin_rule())
 
     story.append(PageBreak())
 
@@ -689,14 +794,14 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
             cls_style = st["cell_err"] if is_trash else st["cell_ind"] if cls == "person" else st["cell"]
             tr_rows.append([
                 Paragraph(f"#{tr.get('track_id', '')}",          st["cell_b"]),
-                Paragraph(cls,                                     cls_style),
-                Paragraph(src,                                     st["cell_muted"]),
+                Paragraph(cls,                                    cls_style),
+                Paragraph(src,                                    st["cell_muted"]),
                 Paragraph(tr.get("first_seen_fmt", _fmt_ts(tr.get("first_seen", 0))),
                           st["cell"]),
                 Paragraph(tr.get("last_seen_fmt",  _fmt_ts(tr.get("last_seen",  0))),
                           st["cell"]),
-                Paragraph(dur_s,                                   st["cell_b"]),
-                Paragraph(str(tr.get("detections", "")),           st["cell_b"]),
+                Paragraph(dur_s,                                  st["cell_b"]),
+                Paragraph(str(tr.get("detections", "")),          st["cell_b"]),
             ])
 
         tt = Table(tr_rows, colWidths=tr_cw, repeatRows=1)
@@ -729,7 +834,7 @@ def generate_pdf(report_data: dict, annotated_frames: dict = None) -> bytes:
         cb_cw = [50 * mm, 30 * mm, 30 * mm, None]
         cb_cw[-1] = W - sum(c for c in cb_cw if c)
         cb_rows = [cb_hdr]
-        for cls, cnt in sorted(class_cts.items(), key=lambda x: -x[1]):
+        for cls, cnt in sorted(class_cts.items(), key=lambda x: -float(x[1])):
             pct_v  = round(cnt / total_dets * 100, 1) if total_dets else 0
             is_tr  = cls not in {"person","car","truck","bus","bicycle","motorcycle"}
             ctype  = "Waste / Trash" if is_tr else "Person/Vehicle"

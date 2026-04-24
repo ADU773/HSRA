@@ -52,6 +52,11 @@ MAX_CONTENT_LENGTH = 2 * 1024 * 1024 * 1024  # 2 GB
 app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
 
 
+@app.errorhandler(413)
+def too_large(e):
+    return jsonify({"error": "File too large. Maximum allowed size is 2 GB."}), 413
+
+
 def _new_job(video_path: str, use_vlm: bool) -> str:
     job_id = str(uuid.uuid4())
     with _JOBS_LOCK:
